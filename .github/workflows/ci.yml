@@ -32,7 +32,7 @@ jobs:
       web: ${{ steps.check.outputs.web }}
       python: ${{ steps.check.outputs.python }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - id: check
         shell: bash
@@ -59,7 +59,7 @@ jobs:
     name: Repository hygiene
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: No committed secrets
         shell: bash
@@ -141,7 +141,7 @@ jobs:
       run:
         working-directory: apps/web
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-node@v4
         with:
@@ -165,7 +165,7 @@ jobs:
       matrix:
         component: [apps/api, services/crawler, services/ingestion, services/evaluation]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-python@v5
         with:
