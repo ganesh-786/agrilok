@@ -1,0 +1,77 @@
+name: "Bug report"
+description: "Something in the app, pipeline or tooling is broken."
+title: "[bug]: "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        For study material that is *wrong* rather than *broken*, use the
+        **Content error** template instead.
+
+        For a security or privacy problem, do **not** file here - see
+        [SECURITY.md](https://github.com/ganesh-786/agrilok/blob/main/SECURITY.md).
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect to happen?
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      value: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Which part?
+      options:
+        - "apps/web - student-facing PWA"
+        - "apps/api - retrieval and generation"
+        - "services/crawler"
+        - "services/ingestion - extraction, OCR, chunking"
+        - "services/evaluation - golden set harness"
+        - "infra - database and migrations"
+        - "Repo tooling, CI or docs"
+        - "Not sure"
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or error output
+      description: "Pasted text is more useful than a screenshot. **Redact any API key before pasting.**"
+      render: shell
+
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      placeholder: "e.g. Chrome 130 on Android 13, or Python 3.12 on Windows 11"
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: "I searched existing issues for a duplicate."
+          required: true
+        - label: "I removed every API key, token and personal detail from what I pasted."
+          required: true

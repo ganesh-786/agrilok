@@ -1,0 +1,103 @@
+agrilok
+Copyright (c) 2026 Ganesh Chaudhary and the agrilok contributors
+
+================================================================================
+1. LICENSE MAP — which license covers which file
+================================================================================
+
+  Source code, config, build tooling ......... MIT              -> LICENSE
+  Documentation, study content, datasets ..... CC BY-SA 4.0     -> LICENSE-CONTENT
+  Third-party government documents ........... NOT RELICENSED   -> section 2 below
+  Third-party dependencies ................... their own terms  -> section 4 below
+
+When a single file mixes code and prose, the code license (MIT) governs.
+
+Machine-readable summary:
+
+  SPDX-License-Identifier: MIT AND CC-BY-SA-4.0
+
+================================================================================
+2. GOVERNMENT SOURCE MATERIAL — the part that matters most
+================================================================================
+
+This project ingests documents published by the Government of Nepal, including
+but not limited to:
+
+  * Public Service Commission of Nepal (psc.gov.np)
+  * The seven Provincial Public Service Commissions (Koshi, Madhesh, Bagmati,
+    Gandaki, Lumbini, Karnali, Sudurpaschim)
+  * Nepal Agricultural Research Council (narc.gov.np)
+  * The ministry responsible for agriculture policy and its agencies
+  * The Nepal Gazette
+
+THE AGRILOK PROJECT CLAIMS NO COPYRIGHT IN THOSE DOCUMENTS. Under the Copyright
+Act, 2059 (2002) of Nepal, copyright in works published by the Government of
+Nepal is held by the Government of Nepal. Nothing in LICENSE or LICENSE-CONTENT
+grants you any right in that material, and downstream users of this project
+receive no such right from us.
+
+This project relies on the fair-dealing provisions of the Copyright Act, 2059,
+which permit use for private study, research, teaching and citation where such
+use does not harm the economic interests of the rights holder. To stay inside
+that boundary, the project binds itself to the following rules. They are
+enforced in review, not merely aspirational:
+
+  (a) Summarize and cite. Do not republish a government document in full as
+      the product. Quotation is limited to what is needed to answer a specific
+      study question.
+  (b) Always link back. Every derived answer, summary or question must carry a
+      resolvable link to the original document on its official domain, plus the
+      date it was fetched.
+  (c) Never imply endorsement. This project is independent and unaffiliated.
+  (d) Never alter meaning. Translations, summaries and reformattings must be
+      faithful; where a summary and the source disagree, the source wins and
+      the summary is a bug.
+  (e) Honour the publisher's wishes. robots.txt and terms of service are
+      re-checked before a source is added and on an ongoing basis. A takedown
+      or objection from a source operator is honoured immediately and without
+      argument. See docs/crawl-policy.md.
+  (f) Do not redistribute the raw corpus. Fetched originals live in data/raw/,
+      which is gitignored and is not published as a dataset.
+
+If you represent a rights holder and believe this project has overstepped,
+please contact ganeshchaudhary4400@gmail.com or open a GitHub issue. Requests
+are honoured first and discussed afterwards.
+
+================================================================================
+3. NOT AN OFFICIAL SOURCE
+================================================================================
+
+agrilok is not affiliated with, endorsed by, or connected to the Public Service
+Commission of Nepal, any Provincial Public Service Commission, or any ministry
+or agency of the Government of Nepal. Exam curricula and vacancy notices change
+without notice. The official notice always governs. Verify before you rely.
+
+================================================================================
+4. THIRD-PARTY DEPENDENCIES
+================================================================================
+
+This project depends on third-party open-source software distributed under its
+own licenses, including (non-exhaustive, resolved at build time):
+
+  Next.js, React, Tailwind CSS ............... MIT
+  FastAPI, Pydantic, Uvicorn ................. MIT / BSD-3-Clause
+  Scrapy ..................................... BSD-3-Clause
+  PyMuPDF .................................... AGPL-3.0 (see caution below)
+  pdfplumber, pypdfium2 ...................... MIT / BSD-3-Clause / Apache-2.0
+  Tesseract OCR .............................. Apache-2.0
+  PostgreSQL ................................. PostgreSQL License
+  pgvector ................................... PostgreSQL License
+  Redis / Valkey client libraries ............ MIT / BSD-3-Clause
+
+CAUTION — PyMuPDF is AGPL-3.0. Linking it into a network-served backend can
+oblige this project to offer that backend's complete corresponding source under
+the AGPL. agrilok is open source, so this is survivable, but it is a real
+constraint on anyone who forks this privately. If that is a problem for your
+deployment, use pdfplumber or pypdfium2 instead; the extraction interface is
+designed to allow that substitution. This trade-off is recorded in
+docs/adr/0002-text-layer-before-ocr.md.
+
+Authoritative dependency license information comes from the lockfiles, not from
+this list. Regenerate it before any release:
+
+  scripts/check-licenses.sh

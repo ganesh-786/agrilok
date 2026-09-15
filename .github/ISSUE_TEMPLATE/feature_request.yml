@@ -1,0 +1,72 @@
+name: "Feature request"
+description: "Propose a new capability."
+title: "[feat]: "
+labels: ["enhancement", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please propose before you build. This project has hard constraints -
+        a finite free-tier API quota, a mandatory human review step, and
+        low-bandwidth rural users - and a feature that ignores them cannot be
+        merged however well it is written.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: "Describe the aspirant's problem, not the feature. Who is stuck, and on what?"
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What do you propose?
+    validations:
+      required: true
+
+  - type: dropdown
+    id: level
+    attributes:
+      label: Which exam level does it serve?
+      options:
+        - "Level 4 (Junior Technical Assistant)"
+        - "Level 7 (Officer)"
+        - "Both"
+        - "Neither - infrastructure or tooling"
+    validations:
+      required: true
+
+  - type: textarea
+    id: quota
+    attributes:
+      label: Effect on the Gemini free-tier quota
+      description: >-
+        Would this need a live model call per student, per question? If so, can
+        it be pre-generated once and cached instead? See
+        docs/adr/0004-cache-first-serving.md. "I do not know" is an acceptable
+        answer.
+    validations:
+      required: true
+
+  - type: textarea
+    id: sourcing
+    attributes:
+      label: Where would the content come from?
+      description: "If it shows students anything factual, which official source backs it, and who reviews it?"
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you considered
+
+  - type: checkboxes
+    id: constraints
+    attributes:
+      label: Constraint check
+      options:
+        - label: "It does not require answering from model memory instead of retrieved sources."
+        - label: "It does not put unreviewed content in front of students."
+        - label: "It works on a phone with intermittent connectivity."
+        - label: "It does not paywall core study content."

@@ -1,0 +1,116 @@
+name: Scheduled crawl
+
+# Re-crawls the whitelisted official sources and opens a review issue when a
+# published document has changed. See docs/crawl-policy.md and
+# docs/runbooks/crawl-failure.md.
+#
+# STATUS: scaffold. The crawler does not exist yet, so this workflow exits
+# cleanly instead of failing. The cron is live so the schedule is exercised and
+# does not silently rot before Phase 1.
+
+on:
+  schedule:
+    # 02:30 Asia/Kathmandu (20:45 UTC) daily - off-peak for the source sites.
+    - cron: "45 20 * * *"
+  workflow_dispatch:
+    inputs:
+      source:
+        description: "Crawl a single source id from data/sources/whitelist.yml (blank = all)"
+        required: false
+        type: string
+      dry_run:
+        description: "Fetch nothing; only report what would be fetched"
+        required: false
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  # Never run two crawls at once. Politeness to the source sites is a hard
+  # requirement, not a preference.
+  group: crawl
+  cancel-in-progress: false
+
+jobs:
+  crawl:
+    name: Crawl whitelisted sources
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check the crawler exists
+        id: guard
+        shell: bash
+        run: |
+          if [ -f services/crawler/pyproject.toml ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Crawler not implemented yet (Phase 1). Exiting cleanly."
+          fi
+
+      - name: Verify the whitelist is present and parseable
+        if: steps.guard.outputs.ready == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f data/sources/whitelist.yml
+          python -m pip install --quiet pyyaml
+          python -c "import yaml,sys; yaml.safe_load(open('data/sources/whitelist.yml')); print('whitelist parses')"
+
+      - uses: actions/setup-python@v5
+        if: steps.guard.outputs.ready == 'true'
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install crawler
+        if: steps.guard.outputs.ready == 'true'
+        working-directory: services/crawler
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+
+      - name: Crawl
+        if: steps.guard.outputs.ready == 'true'
+        working-directory: services/crawler
+        env:
+          CRAWLER_USER_AGENT: ${{ vars.CRAWLER_USER_AGENT }}
+          CRAWLER_CONTACT_EMAIL: ${{ vars.CRAWLER_CONTACT_EMAIL }}
+          CRAWLER_RESPECT_ROBOTS_TXT: "true"
+          CRAWLER_DOWNLOAD_DELAY_SECONDS: "3"
+          SOURCE_FILTER: ${{ inputs.source }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: python -m crawler.run
+
+      - name: Upload crawl report
+        if: steps.guard.outputs.ready == 'true' && always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: crawl-report-${{ github.run_id }}
+          path: services/crawler/reports/
+          if-no-files-found: ignore
+          retention-days: 30
+
+      # Changed source documents must never publish straight to students.
+      # They open a review issue and wait for a human. See CONTRIBUTING.md.
+      - name: Open review issue for changed documents
+        if: steps.guard.outputs.ready == 'true' && success()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          report=services/crawler/reports/changed.md
+          if [ -s "$report" ]; then
+            gh issue create \
+              --title "[review] Source documents changed on $(date -u +%Y-%m-%d)" \
+              --label "content-review,automated" \
+              --body-file "$report"
+          else
+            echo "No source documents changed."
+          fi

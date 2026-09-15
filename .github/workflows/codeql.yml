@@ -1,0 +1,81 @@
+name: CodeQL
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Weekly baseline scan, Mondays 04:00 Asia/Kathmandu (22:15 UTC Sunday).
+    - cron: "15 22 * * 0"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: codeql-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # CodeQL fails hard with "no source code seen" on an empty repo, so gate it
+  # until each language actually exists. Remove the gate once code lands.
+  detect:
+    name: Detect languages
+    runs-on: ubuntu-latest
+    outputs:
+      javascript: ${{ steps.check.outputs.javascript }}
+      python: ${{ steps.check.outputs.python }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: check
+        shell: bash
+        run: |
+          if [ -n "$(git ls-files '*.ts' '*.tsx' '*.js' '*.jsx')" ]; then
+            echo "javascript=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "javascript=false" >> "$GITHUB_OUTPUT"
+          fi
+          if [ -n "$(git ls-files '*.py')" ]; then
+            echo "python=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "python=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  analyze:
+    name: Analyze (${{ matrix.language }})
+    needs: detect
+    if: needs.detect.outputs.javascript == 'true' || needs.detect.outputs.python == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - language: javascript-typescript
+            enabled: ${{ needs.detect.outputs.javascript }}
+          - language: python
+            enabled: ${{ needs.detect.outputs.python }}
+    steps:
+      - if: matrix.enabled == 'true'
+        uses: actions/checkout@v4
+
+      - if: matrix.enabled == 'true'
+        name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          language: ${{ matrix.language }}
+          queries: security-and-quality
+
+      - if: matrix.enabled == 'true'
+        name: Autobuild
+        uses: github/codeql-action/autobuild@v3
+
+      - if: matrix.enabled == 'true'
+        name: Perform CodeQL analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:${{ matrix.language }}"

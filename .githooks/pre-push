@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+#
+# Blocks any push whose target branch is main.
+#
+# Every change goes through a branch and a pull request. This hook is the only
+# enforcement that runs locally, so it is deliberately blunt.
+#
+# Enable with:  git config core.hooksPath .githooks
+
+set -euo pipefail
+
+protected="main"
+blocked=0
+
+# stdin gives: <local ref> <local sha> <remote ref> <remote sha>
+while read -r _local_ref _local_sha remote_ref _remote_sha; do
+  [ -z "${remote_ref:-}" ] && continue
+  branch="${remote_ref#refs/heads/}"
+  if [ "$branch" = "$protected" ]; then
+    blocked=1
+  fi
+done
+
+if [ "$blocked" -eq 1 ]; then
+  cat >&2 <<'MSG'
+
+  Push to main blocked.
+
+  Every change goes through a branch and a pull request.
+
+    git switch -c feat/your-change
+    git push -u origin feat/your-change
+
+  If the work is already committed on main, move it:
+
+    git switch -c feat/your-change
+    git switch main
+    git reset --hard origin/main
+
+  See .claude/context/git-workflow.md
+
+MSG
+  exit 1
+fi
+
+exit 0

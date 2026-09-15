@@ -1,0 +1,95 @@
+name: "Source request (add an official source)"
+description: "Propose an official document source for the crawl whitelist."
+title: "[source]: "
+labels: ["source-request", "needs-whitelist-approval"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Sources are not added casually - each one is a trust commitment to
+        students, and the whitelist has a single named owner precisely so it
+        cannot quietly grow to include unreliable sites.
+
+        Please read
+        [docs/data-governance.md](https://github.com/ganesh-786/agrilok/blob/main/docs/data-governance.md)
+        before filing.
+
+        **Only official sources are eligible.** Blogs, coaching-centre notes,
+        YouTube channels, Facebook groups and PDF aggregators are out of scope
+        no matter how accurate they are, because a student cannot verify them
+        against an authority.
+
+  - type: input
+    id: domain
+    attributes:
+      label: Domain
+      placeholder: "ppsc.gandaki.gov.np"
+    validations:
+      required: true
+
+  - type: textarea
+    id: what
+    attributes:
+      label: What does it publish that we need?
+      placeholder: "Level 7 agriculture officer curricula and vacancy notices for Gandaki Province."
+    validations:
+      required: true
+
+  - type: textarea
+    id: authority
+    attributes:
+      label: Why is it authoritative?
+      description: "Which body operates it, and what gives it standing on this subject?"
+    validations:
+      required: true
+
+  - type: textarea
+    id: robots
+    attributes:
+      label: Current robots.txt
+      description: >-
+        Paste the full contents of https://DOMAIN/robots.txt and the date you
+        fetched it. If it disallows the paths we would need, say so - that is a
+        valid and useful answer, and it stops us crawling where we should not.
+      render: text
+    validations:
+      required: true
+
+  - type: input
+    id: robots-date
+    attributes:
+      label: Date you checked robots.txt
+      placeholder: "YYYY-MM-DD"
+    validations:
+      required: true
+
+  - type: textarea
+    id: terms
+    attributes:
+      label: Terms of use
+      description: "Anything in the site terms that restricts automated access or reuse? Link it."
+
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Which exam levels does this source serve?
+      multiple: true
+      options:
+        - "Level 4 (Junior Technical Assistant)"
+        - "Level 7 (Officer)"
+        - "Both"
+        - "Background or policy context only"
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Confirmations
+      options:
+        - label: "This is an official government or public-institution source."
+          required: true
+        - label: "I checked robots.txt myself and pasted it above, rather than assuming."
+          required: true
+        - label: "I understand the whitelist owner makes the final call."
+          required: true

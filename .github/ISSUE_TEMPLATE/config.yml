@@ -1,0 +1,17 @@
+blank_issues_enabled: false
+contact_links:
+  - name: "Question or discussion"
+    url: https://github.com/ganesh-786/agrilok/discussions
+    about: "Ask how something works, or float an idea before filing an issue. Nepali or English."
+
+  - name: "Security or privacy vulnerability (private)"
+    url: https://github.com/ganesh-786/agrilok/security/advisories/new
+    about: "Report privately. Never open a public issue for a security problem."
+
+  - name: "Copyright, takedown or source-operator request"
+    url: https://github.com/ganesh-786/agrilok/blob/main/NOTICE
+    about: "Rights holders and site operators: email ganeshchaudhary4400@gmail.com. Requests are honoured first and discussed after."
+
+  - name: "Official exam information (we are not the PSC)"
+    url: https://psc.gov.np
+    about: "Vacancies, eligibility, results and the authoritative syllabus come from the Public Service Commission, not from us."
