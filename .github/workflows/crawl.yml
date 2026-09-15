@@ -62,7 +62,7 @@ jobs:
           python -m pip install --quiet pyyaml
           python -c "import yaml,sys; yaml.safe_load(open('data/sources/whitelist.yml')); print('whitelist parses')"
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         if: steps.guard.outputs.ready == 'true'
         with:
           python-version: "3.12"

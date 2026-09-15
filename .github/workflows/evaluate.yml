@@ -52,7 +52,7 @@ jobs:
         run: |
           echo "::warning::This PR touches a retrieval path. Faithfulness is not measured automatically yet - a reviewer must confirm it by hand before merge."
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         if: steps.guard.outputs.ready == 'true'
         with:
           python-version: "3.12"
