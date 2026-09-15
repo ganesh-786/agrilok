@@ -1,0 +1,33 @@
+# CODEOWNERS - who is automatically requested for review.
+# Later matches win.
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+#
+# NOTE: for these rules to actually gate merges, enable branch protection on
+# main with "Require review from Code Owners".
+
+# Default owner for everything not matched below.
+*                           @ganesh-786
+
+# --- Trust-critical paths --------------------------------------------------
+# The source whitelist has a single named owner by design, so it cannot quietly
+# grow to include unreliable sites. See docs/data-governance.md#roles.
+/data/sources/              @ganesh-786
+/NOTICE                     @ganesh-786
+/LICENSE                    @ganesh-786
+/LICENSE-CONTENT            @ganesh-786
+/SECURITY.md                @ganesh-786
+/docs/data-governance.md    @ganesh-786
+/docs/crawl-policy.md       @ganesh-786
+/docs/privacy.md            @ganesh-786
+
+# The golden set defines what "correct" means. Changing it changes every
+# evaluation result, so it is reviewed like production code.
+/data/golden-set/           @ganesh-786
+/docs/evaluation.md         @ganesh-786
+/services/evaluation/       @ganesh-786
+
+# Architecture decisions are debated in their own PRs.
+/docs/adr/                  @ganesh-786
+
+# CI/CD affects everything downstream of it.
+/.github/                   @ganesh-786

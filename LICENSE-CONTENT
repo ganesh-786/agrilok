@@ -1,0 +1,97 @@
+Creative Commons Attribution-ShareAlike 4.0 International (CC BY-SA 4.0)
+
+SPDX-License-Identifier: CC-BY-SA-4.0
+
+Copyright (c) 2026 Ganesh Chaudhary and the agrilok contributors
+
+
+WHAT THIS FILE COVERS
+---------------------
+
+This license applies to the ORIGINAL NON-SOFTWARE WORKS in this repository —
+the study material, documentation and curated datasets that the project authors
+and contributors wrote themselves. Specifically:
+
+  * docs/**                       project documentation and architecture records
+  * data/sources/**               the curated source whitelist and its metadata
+  * data/golden-set/**            evaluation questions, reference answers and labels
+  * Written study content         topic explanations, summaries, mock questions and
+                                  answer keys authored for or by this project,
+                                  wherever they are stored
+  * README.md, CONTRIBUTING.md, and the other prose files at the repository root
+
+It does NOT cover:
+
+  * Source code, configuration and build tooling — those are MIT licensed.
+    See LICENSE.
+  * Documents published by the Government of Nepal or any other third party,
+    including anything fetched by the crawler into data/raw/ or quoted from it.
+    Those remain the property of their original rights holders and are NOT
+    relicensed by this project. See NOTICE.
+
+
+THE LICENSE
+-----------
+
+You are free to:
+
+  Share  — copy and redistribute the material in any medium or format
+  Adapt  — remix, transform, and build upon the material for any purpose,
+           including commercially
+
+under the following terms:
+
+  Attribution — You must give appropriate credit, provide a link to this
+  license, and indicate if changes were made. You may do so in any reasonable
+  manner, but not in any way that suggests the licensor endorses you or your
+  use.
+
+  ShareAlike — If you remix, transform, or build upon the material, you must
+  distribute your contributions under the same license as the original.
+
+  No additional restrictions — You may not apply legal terms or technological
+  measures that legally restrict others from doing anything the license
+  permits.
+
+ShareAlike is a deliberate choice, not a default. This material exists so that
+Loksewa aspirants can study for free. ShareAlike keeps derivative study
+material free as well.
+
+
+ATTRIBUTION FORMAT
+------------------
+
+A suggested attribution:
+
+  "Study material from the agrilok project
+   (https://github.com/ganesh-786/agrilok), used under CC BY-SA 4.0."
+
+Where content is derived from a government document, attribute the government
+source as well, as described in NOTICE.
+
+
+FULL LEGAL TEXT
+---------------
+
+The complete and controlling legal text of this license is published by
+Creative Commons at:
+
+  https://creativecommons.org/licenses/by-sa/4.0/legalcode
+
+A plain-language summary (not a substitute for the legal text) is at:
+
+  https://creativecommons.org/licenses/by-sa/4.0/
+
+In the event of any conflict between the summary above and the legal text at
+the URL above, the legal text controls.
+
+
+DISCLAIMER
+----------
+
+The study material in this repository is provided for exam preparation. It is
+not an official publication of the Public Service Commission of Nepal, of any
+Provincial Public Service Commission, or of any ministry or government body,
+and no endorsement by any of them is claimed or implied. Always verify against
+the official notice and curriculum before relying on anything here. See the
+accuracy disclaimer in README.md.

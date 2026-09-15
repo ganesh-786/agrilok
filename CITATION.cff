@@ -1,0 +1,30 @@
+cff-version: 1.2.0
+title: "agrilok: a source-cited AI study platform for Nepal's Loksewa agriculture exams"
+message: "If you use this project or its approach in your work, please cite it."
+type: software
+authors:
+  - given-names: Ganesh
+    family-names: Chaudhary
+    email: ganeshchaudhary4400@gmail.com
+repository-code: "https://github.com/ganesh-786/agrilok"
+abstract: >-
+  agrilok is a free, open-source retrieval-augmented study platform for the
+  Nepal Public Service Commission agriculture service examinations at Level 4
+  (Junior Technical Assistant) and Level 7 (Officer). It crawls whitelisted
+  official federal and provincial sources, extracts and human-reviews the
+  material, and generates study answers strictly from retrieved text so that
+  every answer carries a resolvable citation back to the originating government
+  document. The design targets sustained free operation on free-tier
+  infrastructure through cache-first serving, and low-bandwidth rural delivery
+  through a progressive web app.
+keywords:
+  - retrieval-augmented-generation
+  - education
+  - nepal
+  - loksewa
+  - agriculture
+  - public-service-commission
+  - nepali-nlp
+  - low-resource-languages
+license: MIT
+license-url: "https://github.com/ganesh-786/agrilok/blob/main/LICENSE"

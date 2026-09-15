@@ -1,0 +1,128 @@
+# =============================================================================
+# agrilok - trusted source whitelist
+# =============================================================================
+# THE CRAWLER FETCHES NOTHING THAT IS NOT LISTED UNDER `sources:` BELOW.
+#
+# This file is the trust root of the entire project. Every entry is a promise to
+# students that what they read came from an authority, and a request against
+# someone else's infrastructure.
+#
+# Adding an entry requires, in order:
+#   1. A Source request issue (.github/ISSUE_TEMPLATE/source_request.yml)
+#   2. Vetting - authority, robots.txt, terms of use, scope, politeness budget
+#   3. Approval by the named whitelist owner (docs/data-governance.md#roles)
+#
+# See docs/crawl-policy.md for what this project promises source operators.
+# =============================================================================
+
+version: 1
+
+owner:
+  # A single named person owns this file by design, so it cannot quietly grow to
+  # include unreliable sites.
+  github: ganesh-786
+  contact: ganeshchaudhary4400@gmail.com
+
+defaults:
+  # Deliberately conservative. Small government sites are not resourced for
+  # aggressive crawling. An entry may be slower than this, never faster.
+  respect_robots_txt: true          # Never set false. Not negotiable.
+  download_delay_seconds: 3
+  concurrent_requests: 1
+  obey_retry_after: true
+  recrawl_interval_days: 7
+  user_agent_env: CRAWLER_USER_AGENT
+
+# -----------------------------------------------------------------------------
+# APPROVED SOURCES - the crawler reads only this list.
+# -----------------------------------------------------------------------------
+# Empty until Phase 1. The Phase 0 spike uses documents collected by hand, so no
+# automated crawling happens before the go/no-go gate is cleared.
+#
+# Entry schema:
+#
+#   - id: psc-federal                  # stable slug, used as chunk `source_id`
+#     name: "Public Service Commission of Nepal"
+#     domain: psc.gov.np
+#     authority: "Federal constitutional body that sets and administers..."
+#     provinces: [federal]
+#     exam_levels: [level_4, level_7]
+#     doc_types: [curriculum, vacancy_notice, past_paper, result]
+#     allowed_paths: ["/downloadfile/", "/syllabus/"]
+#     robots_txt:
+#       permits_our_paths: true
+#       checked_on: "YYYY-MM-DD"       # a real date someone actually checked
+#       checked_by: "@handle"
+#       verbatim: |
+#         User-agent: *
+#         Disallow:
+#     terms_of_use: "https://..."      # or `none_found`
+#     download_delay_seconds: 3
+#     recrawl_interval_days: 7
+#     approved_by: "@ganesh-786"
+#     approved_on: "YYYY-MM-DD"
+#     notes: "Scanned PDFs are common here - expect OCR and mandatory review."
+
+sources: []
+
+# -----------------------------------------------------------------------------
+# CANDIDATES - known, NOT yet vetted, NOT crawlable.
+# -----------------------------------------------------------------------------
+# These are the domains the project expects to need. They are recorded here so
+# the work is visible, NOT because they have been cleared. Nothing moves to
+# `sources:` until someone has actually fetched its robots.txt, read its terms,
+# and had the owner approve it. `robots_txt_checked: null` means exactly that -
+# no one has checked. Do not assume permission from this list.
+
+candidates:
+  - domain: psc.gov.np
+    note: "Federal Public Service Commission - curricula, vacancies, results."
+    robots_txt_checked: null
+
+  - domain: psc.koshi.gov.np
+    note: "Koshi Province PSC."
+    robots_txt_checked: null
+
+  - domain: ppsc.madhesh.gov.np
+    note: "Madhesh Province PSC."
+    robots_txt_checked: null
+
+  - domain: ppsc.bagmati.gov.np
+    note: "Bagmati Province PSC - domain to be confirmed."
+    robots_txt_checked: null
+
+  - domain: ppsc.gandaki.gov.np
+    note: "Gandaki Province PSC."
+    robots_txt_checked: null
+
+  - domain: ppsc.lumbini.gov.np
+    note: "Lumbini Province PSC - domain to be confirmed."
+    robots_txt_checked: null
+
+  - domain: ppsc.karnali.gov.np
+    note: "Karnali Province PSC - domain to be confirmed."
+    robots_txt_checked: null
+
+  - domain: ppsc.sudurpashchim.gov.np
+    note: "Sudurpaschim Province PSC - domain to be confirmed."
+    robots_txt_checked: null
+
+  - domain: narc.gov.np
+    note: "Nepal Agricultural Research Council - technical and research material."
+    robots_txt_checked: null
+
+# -----------------------------------------------------------------------------
+# EXCLUDED - do not propose these again.
+# -----------------------------------------------------------------------------
+excluded:
+  - pattern: "coaching centre notes, PDF aggregators, exam-prep blogs"
+    reason: >-
+      Not official. A student cannot verify them against an authority, which is
+      the entire point of this product. Accuracy is not the test; verifiability
+      is.
+  - pattern: "Facebook groups, YouTube channels, Telegram channels"
+    reason: "Unverifiable, unstable, and a known route for wrong facts to spread."
+  - pattern: "any domain whose robots.txt disallows the paths we need"
+    reason: >-
+      Honoured without exception. No alternate user-agent, no 'just for
+      testing'. See docs/crawl-policy.md.

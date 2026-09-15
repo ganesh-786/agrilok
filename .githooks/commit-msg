@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+#
+# Rejects commit messages that carry AI or tool attribution, and long dashes
+# used as punctuation. See .claude/context/git-workflow.md
+#
+# Enable with:  git config core.hooksPath .githooks
+
+set -euo pipefail
+
+msg_file="$1"
+# Strip the comment lines git adds to the template.
+msg=$(grep -v '^#' "$msg_file" || true)
+
+fail() {
+  echo "" >&2
+  echo "  Commit message rejected: $1" >&2
+  echo "" >&2
+  echo "  See .claude/context/git-workflow.md" >&2
+  echo "" >&2
+  exit 1
+}
+
+# --- AI and tool attribution -------------------------------------------------
+if echo "$msg" | grep -qiE 'co-authored-by:.*(claude|anthropic|copilot|chatgpt|openai|gpt|assistant|\[bot\])'; then
+  fail "co-author line naming an AI tool. Remove it."
+fi
+
+if echo "$msg" | grep -qiE '(generated|created|written|authored|assisted) (with|by) [^ ]*(claude|anthropic|copilot|chatgpt|openai|cursor|ai)\b'; then
+  fail "generated-with note. Remove it."
+fi
+
+# A bare mention of a tool name usually means attribution crept in. This repo
+# has a `.claude/` directory and a `claude` commit scope, so strip legitimate
+# path and scope references before checking, otherwise every commit that touches
+# agent config would be rejected.
+stripped=$(echo "$msg" \
+  | sed -E 's/\.claude[a-zA-Z0-9_/.-]*//gI' \
+  | sed -E 's/\(claude\)//gI' \
+  | sed -E 's/claude\.md//gI')
+
+if echo "$stripped" | grep -qiE '\b(claude|anthropic|copilot|chatgpt)\b'; then
+  fail "mentions an AI tool. The author of a commit is the person who owns the change."
+fi
+
+# --- Long dashes used as punctuation -----------------------------------------
+# Command line flags such as --force are fine. A spaced double hyphen is not,
+# and neither is an en dash or an em dash.
+#
+# Built as literal bytes rather than a PCRE escape, because grep in Git for
+# Windows is not built with \x{...} support.
+en_dash=$(printf '\xe2\x80\x93')
+em_dash=$(printf '\xe2\x80\x94')
+
+if echo "$msg" | grep -q ' -- '; then
+  fail "uses ' -- ' as punctuation. Use a comma, a full stop, or split the sentence."
+fi
+
+if echo "$msg" | grep -qF "$en_dash" || echo "$msg" | grep -qF "$em_dash"; then
+  fail "uses a long dash. Use a comma, a full stop, or split the sentence."
+fi
+
+exit 0

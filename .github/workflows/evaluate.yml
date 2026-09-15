@@ -1,0 +1,90 @@
+name: Golden-set evaluation
+
+# Retrieval is where RAG systems fail. Any change to chunking, embeddings,
+# retrieval parameters or prompts must be measured against the golden set
+# before it can merge. See docs/evaluation.md.
+#
+# STATUS: scaffold. The harness does not exist yet, so this exits cleanly.
+# Once it exists, make this a required status check on main.
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "services/ingestion/**"
+      - "services/evaluation/**"
+      - "apps/api/**"
+      - "data/golden-set/**"
+      - "infra/migrations/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: evaluate-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  evaluate:
+    name: Faithfulness and retrieval quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check the harness exists
+        id: guard
+        shell: bash
+        run: |
+          if [ -f services/evaluation/pyproject.toml ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Evaluation harness not implemented yet (Phase 1)."
+            echo "::notice::Until then, paste before/after numbers into the PR by hand."
+          fi
+
+      - name: Warn when a retrieval path changed with no harness
+        if: steps.guard.outputs.ready != 'true'
+        shell: bash
+        run: |
+          echo "::warning::This PR touches a retrieval path. Faithfulness is not measured automatically yet - a reviewer must confirm it by hand before merge."
+
+      - uses: actions/setup-python@v5
+        if: steps.guard.outputs.ready == 'true'
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install harness
+        if: steps.guard.outputs.ready == 'true'
+        working-directory: services/evaluation
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Run golden set
+        if: steps.guard.outputs.ready == 'true'
+        working-directory: services/evaluation
+        env:
+          # A separate key from production, so an evaluation run can never
+          # exhaust the quota that students depend on.
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY_EVAL }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL_EVAL }}
+        run: python -m evaluation.run --report reports/summary.json --markdown reports/summary.md
+
+      - name: Enforce the faithfulness floor
+        if: steps.guard.outputs.ready == 'true'
+        working-directory: services/evaluation
+        run: python -m evaluation.gate --report reports/summary.json
+
+      - name: Upload report
+        if: steps.guard.outputs.ready == 'true' && always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: evaluation-${{ github.run_id }}
+          path: services/evaluation/reports/
+          if-no-files-found: ignore
+          retention-days: 90

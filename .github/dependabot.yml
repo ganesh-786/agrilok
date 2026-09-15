@@ -1,0 +1,82 @@
+version: 2
+
+updates:
+  # --- GitHub Actions -------------------------------------------------------
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "03:00"
+      timezone: Asia/Kathmandu
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: ci
+    labels: [dependencies, ci]
+
+  # --- Web app (Next.js PWA) ------------------------------------------------
+  - package-ecosystem: npm
+    directory: /apps/web
+    schedule:
+      interval: weekly
+      day: monday
+      time: "03:00"
+      timezone: Asia/Kathmandu
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: chore(web)
+    labels: [dependencies, web]
+    groups:
+      # Batch low-risk updates so review effort goes where it matters.
+      dev-dependencies:
+        dependency-type: development
+        update-types: [minor, patch]
+      react-ecosystem:
+        patterns: [react, react-dom, next, "@types/react*"]
+
+  # --- API ------------------------------------------------------------------
+  - package-ecosystem: pip
+    directory: /apps/api
+    schedule:
+      interval: weekly
+      day: monday
+      time: "03:00"
+      timezone: Asia/Kathmandu
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: chore(api)
+    labels: [dependencies, api]
+
+  # --- Crawler --------------------------------------------------------------
+  - package-ecosystem: pip
+    directory: /services/crawler
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: chore(crawler)
+    labels: [dependencies, crawler]
+
+  # --- Ingestion ------------------------------------------------------------
+  # Extraction/OCR dependencies carry license implications (see NOTICE).
+  # Review these manually rather than auto-merging.
+  - package-ecosystem: pip
+    directory: /services/ingestion
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: chore(ingestion)
+    labels: [dependencies, ingestion, needs-license-check]
+
+  # --- Evaluation -----------------------------------------------------------
+  - package-ecosystem: pip
+    directory: /services/evaluation
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: chore(eval)
+    labels: [dependencies, evaluation]

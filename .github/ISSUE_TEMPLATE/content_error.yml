@@ -1,0 +1,91 @@
+name: "Content error (wrong study material)"
+description: "Report a fact, question or answer in agrilok that is wrong, outdated or mis-tagged."
+title: "[content]: "
+labels: ["content-error", "triage", "priority:high"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Thank you.** This is the highest-value report this project receives.
+
+        A wrong fact memorised from here can cost an aspirant an entire exam
+        cycle, so content errors are triaged before everything else.
+
+        You do **not** need an official link to file this. If it just looks
+        wrong, say so and we will check.
+
+        If the problem is that our site is broken rather than wrong, use the
+        Bug report template instead.
+
+  - type: textarea
+    id: where
+    attributes:
+      label: Where did you see it?
+      description: "Page, topic, question ID, or a URL. Screenshots help."
+      placeholder: "Topic: Soil Science > Soil pH, third paragraph"
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-it-says
+    attributes:
+      label: What does it currently say?
+      description: "Quote or paste the incorrect text. Nepali or English is fine."
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-it-should-say
+    attributes:
+      label: What should it say?
+    validations:
+      required: true
+
+  - type: input
+    id: official-source
+    attributes:
+      label: Official source that proves it (optional)
+      description: >-
+        A link to psc.gov.np, a Provincial PSC site, NARC, a ministry site or
+        another official document. Leave blank if you do not have one.
+      placeholder: "https://psc.gov.np/..."
+    validations:
+      required: false
+
+  - type: dropdown
+    id: level
+    attributes:
+      label: Which exam level does this affect?
+      options:
+        - "Level 4 (Junior Technical Assistant)"
+        - "Level 7 (Officer)"
+        - "Both"
+        - "Not sure"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: error-type
+    attributes:
+      label: What kind of error is it?
+      options:
+        - "Factually wrong"
+        - "Outdated - the syllabus or policy changed"
+        - "Tagged to the wrong exam level"
+        - "Tagged to the wrong province or service group"
+        - "Citation link is broken or points somewhere wrong"
+        - "Garbled text - likely an OCR misread of Devanagari"
+        - "Translation changes the meaning"
+        - "Other"
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: state
+    attributes:
+      label: How was the content labelled?
+      description: "This tells us whether our review process failed or simply had not run yet."
+      options:
+        - label: "It was marked Verified"
+        - label: "It was marked AI-assisted, pending review"
+        - label: "I did not notice a label"
