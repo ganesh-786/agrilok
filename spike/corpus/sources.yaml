@@ -1,0 +1,202 @@
+# Phase 0 source manifest — 18 documents, individually verified by direct
+# download (HTTP 200 + application/pdf) before being listed here. See the
+# research trail in this conversation for how each was found and checked.
+#
+# This is NOT data/sources/whitelist.yml. That file is the production crawler
+# whitelist, requiring owner approval per docs/data-governance.md. These were
+# collected by hand for the Phase 0 spike, exactly as docs/roadmap.md
+# specifies, and never feed a crawler.
+#
+# level: 4 | 5 | 7 | 9   (4 and 7 are the Phase 0 target; 5 and 9 are adjacent,
+#                          included because they were verified anyway and cost
+#                          nothing extra to test against)
+# province: federal | lumbini | sudurpaschim | gandaki
+
+documents:
+  - id: LUM-01
+    title: "Provincial Agriculture Service, Agriculture Extension/Horticulture/Agronomy/Plant Protection/Agri Econ & Marketing/Soil Science, Officer Level 7"
+    url: https://ppsc.lumbini.gov.np/media/list/agri_7th.pdf
+    province: lumbini
+    level: 7
+    groups: [agri_extension, horticulture, agronomy, plant_protection, agri_economics_marketing, soil_science]
+    doc_type: curriculum
+    verified_on: "2026-09-16"
+    verified_bytes: 685036
+
+  - id: LUM-02
+    title: "Provincial Agriculture Service, Veterinary Group, Officer Level 7 (2024 revision)"
+    url: https://ppsc.lumbini.gov.np/media/list/%E0%A4%AD%E0%A4%9F%E0%A4%B0%E0%A4%A8%E0%A4%B0_%E0%A4%B8%E0%A4%A4.pdf
+    province: lumbini
+    level: 7
+    groups: [veterinary]
+    doc_type: curriculum
+    verified_on: "2026-09-16"
+    verified_bytes: 396645
+    note: "Two versions exist for this group; see LUM-05 (2021). Deliberately kept both — a real staleness/versioning case for the spike to surface."
+
+  - id: LUM-03
+    title: "Agriculture Extension/Soil Science/Agri Econ & Marketing/Horticulture/Crop Protection, Assistant Level 4"
+    url: https://ppsc.lumbini.gov.np/media/list/%E0%A4%95%E0%A4%B7_%E0%A4%8F%E0%A4%95%E0%A4%95%E0%A4%A4.%E0%A4%AA%E0%A4%B0%E0%A4%B5%E0%A4%A7%E0%A4%95_%E0%A4%9A%E0%A4%A5_gQDmn7u.pdf
+    province: lumbini
+    level: 4
+    groups: [agri_extension, soil_science, agri_economics_marketing, horticulture, crop_protection]
+    doc_type: curriculum
+    verified_on: "2026-09-16"
+    verified_bytes: 585910
+
+  - id: LUM-04
+    title: "Fisheries/Veterinary/Livestock Poultry & Dairy Development, Assistant Level 4"
+    url: https://ppsc.lumbini.gov.np/media/list/%E0%A4%95%E0%A4%B7_%E0%A4%AD%E0%A4%9F_%E0%A4%8F%E0%A4%95%E0%A4%95%E0%A4%A4.%E0%A4%AA%E0%A4%B0%E0%A4%B5%E0%A4%A7%E0%A4%95_%E0%A4%9A%E0%A4%A5.pdf
+    province: lumbini
+    level: 4
+    groups: [fisheries, veterinary, livestock_poultry_dairy]
+    doc_type: curriculum
+    verified_on: "2026-09-16"
+    verified_bytes: 586335
+
+  - id: LUM-05
+    title: "Veterinary Group, Officer Level 7 (2021 version)"
+    url: https://ppsc.lumbini.gov.np/media/list/%E0%A4%AD%E0%A4%9F%E0%A4%B0%E0%A4%A8%E0%A4%B0-%E0%A4%B8%E0%A4%A4-%E0%A4%A4%E0%A4%B9.pdf
+    province: lumbini
+    level: 7
+    groups: [veterinary]
+    doc_type: curriculum
+    verified_on: "2026-09-16"
+    verified_bytes: 767016
+    note: "Earlier version of LUM-02. See note there."
+
+  - id: LUM-06
+    title: "Crop Protection, Officer Level 7"
+    url: https://ppsc.lumbini.gov.np/media/list/%E0%A4%AC%E0%A4%B2-%E0%A4%B8%E0%A4%B0%E0%A4%95%E0%A4%B7%E0%A4%A3-%E0%A4%B8%E0%A4%A4.pdf
+    province: lumbini
+    level: 7
+    groups: [crop_protection]
+    doc_type: curriculum
+    verified_on: "2026-09-16"
+    verified_bytes: 511747
+
+  - id: LUM-07
+    title: "Fisheries, Officer Level 7"
+    url: https://ppsc.lumbini.gov.np/media/list/%E0%A4%AB%E0%A4%B8%E0%A4%B0%E0%A4%9C-%E0%A4%B8%E0%A4%A4-%E0%A4%A4%E0%A4%B9.pdf
+    province: lumbini
+    level: 7
+    groups: [fisheries]
+    doc_type: curriculum
+    verified_on: "2026-09-16"
+    verified_bytes: 587780
+
+  - id: LUM-08
+    title: "Crop Protection, Assistant Level 4"
+    url: https://ppsc.lumbini.gov.np/media/list/%E0%A4%AC%E0%A4%B2-%E0%A4%B8%E0%A4%B0%E0%A4%95%E0%A4%B7%E0%A4%A3-%E0%A4%9A%E0%A4%A5-%E0%A4%A4%E0%A4%B9.pdf
+    province: lumbini
+    level: 4
+    groups: [crop_protection]
+    doc_type: curriculum
+    verified_on: "2026-09-16"
+    verified_bytes: 110191
+
+  - id: LUM-09
+    title: "Livestock, Poultry & Dairy Development, Officer Level 7"
+    url: https://ppsc.lumbini.gov.np/media/list/%E0%A4%B2.%E0%A4%AA.%E0%A4%A1.%E0%A4%A1.-%E0%A4%B8%E0%A4%A4-%E0%A4%A4%E0%A4%B9.pdf
+    province: lumbini
+    level: 7
+    groups: [livestock_poultry_dairy]
+    doc_type: curriculum
+    verified_on: "2026-09-16"
+    verified_bytes: 252576
+
+  - id: LUM-10
+    title: "Food, Nutrition & Quality Control, Officer Level 7"
+    url: https://ppsc.lumbini.gov.np/media/list/%E0%A4%96.%E0%A4%AA.%E0%A4%97.%E0%A4%A8.-%E0%A4%B8%E0%A4%A4-%E0%A4%A4%E0%A4%B9.pdf
+    province: lumbini
+    level: 7
+    groups: [food_nutrition_quality_control]
+    doc_type: curriculum
+    verified_on: "2026-09-16"
+    verified_bytes: 367384
+
+  - id: SUD-01
+    title: "Plant Protection/Agronomy/Horticulture/Agri Extension, Junior Technical Assistant Level 4"
+    url: https://psc.sudurpashchim.gov.np/public/uploads/curriculum/1777691330_Na%20prasa%20Plant%204th.pdf
+    province: sudurpaschim
+    level: 4
+    groups: [plant_protection, agronomy, horticulture, agri_extension]
+    doc_type: curriculum
+    verified_on: "2026-09-16"
+    verified_bytes: 742984
+
+  - id: SUD-02
+    title: "Fisheries/Veterinary/Livestock, Junior Technical Assistant Level 4"
+    url: https://psc.sudurpashchim.gov.np/public/uploads/curriculum/1777691330_V-JTA-level-4.pdf
+    province: sudurpaschim
+    level: 4
+    groups: [fisheries, veterinary, livestock]
+    doc_type: curriculum
+    verified_on: "2026-09-16"
+    verified_bytes: 583816
+
+  - id: SUD-03
+    title: "Plant Protection/Agronomy/Horticulture/Agri Extension, Technical Assistant Level 5"
+    url: https://psc.sudurpashchim.gov.np/public/uploads/curriculum/1777691331_Prasa%20Plant%205th.pdf
+    province: sudurpaschim
+    level: 5
+    groups: [plant_protection, agronomy, horticulture, agri_extension]
+    doc_type: curriculum
+    verified_on: "2026-09-16"
+    verified_bytes: 733562
+    note: "Adjacent to the Phase 0 target (4/7), included because already verified."
+
+  - id: SUD-04
+    title: "Fisheries/Veterinary/Livestock, Technical Assistant Level 5"
+    url: https://psc.sudurpashchim.gov.np/public/uploads/curriculum/1777691330_Vetnari%20_level%205.pdf
+    province: sudurpaschim
+    level: 5
+    groups: [fisheries, veterinary, livestock]
+    doc_type: curriculum
+    verified_on: "2026-09-16"
+    verified_bytes: 582872
+    note: "Adjacent to the Phase 0 target (4/7), included because already verified."
+
+  - id: GAN-01
+    title: "Agriculture, Junior Technical Assistant Level 4"
+    url: https://ppsc.gandaki.gov.np/images/news/16315200358848_%E0%A4%A8%E0%A4%BE.%E0%A4%AA%E0%A5%8D%E0%A4%B0%E0%A4%BE.%E0%A4%B8.%20%E0%A4%95%E0%A5%83%E0%A4%B7%E0%A4%BF%20%E0%A4%9A%E0%A5%8C%E0%A4%A5%E0%A5%8B%20Final.pdf
+    province: gandaki
+    level: 4
+    groups: [agriculture]
+    doc_type: curriculum
+    verified_on: "2026-09-16"
+    verified_bytes: 187246
+
+  - id: GAN-02
+    title: "Veterinary (\"vet I\")"
+    url: https://ppsc.gandaki.gov.np/images/courses/16957829176910_vet%20I.pdf
+    province: gandaki
+    level: 7
+    level_confidence: inferred
+    groups: [veterinary]
+    doc_type: curriculum
+    verified_on: "2026-09-16"
+    verified_bytes: 176404
+    note: "Level 7 is INFERRED from content depth (clinical surgery, obstetrics, epidemiology — officer-level material), not stated in the filename or confirmed from a title page. Treat with more caution in faithfulness review than the other 17."
+
+  - id: GAN-03
+    title: "Veterinary Doctor, Level 9, First Paper"
+    url: https://ppsc.gandaki.gov.np/images/courses/17720968197001_Veterinary%20Doctor%209th%20Level%20First%20Paper.pdf
+    province: gandaki
+    level: 9
+    groups: [veterinary]
+    doc_type: curriculum
+    verified_on: "2026-09-16"
+    verified_bytes: 133685
+    note: "Adjacent to the Phase 0 target (4/7), included because already verified."
+
+  - id: GAN-04
+    title: "Veterinary Doctor, Level 9, Second Paper"
+    url: https://ppsc.gandaki.gov.np/images/courses/17720968195555_Veterinary%20Doctor%20second%20paper.pdf
+    province: gandaki
+    level: 9
+    groups: [veterinary]
+    doc_type: curriculum
+    verified_on: "2026-09-16"
+    verified_bytes: 169111
+    note: "Adjacent to the Phase 0 target (4/7), included because already verified."
