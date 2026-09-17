@@ -64,6 +64,11 @@ async function callWithRetry(fn, label) {
 
 async function post(pathSuffix, body, label) {
   const url = `${API_BASE}/${pathSuffix}`;
+  // label is passed through to callWithRetry below as well as being used
+  // directly inside this closure - it used to be captured here but never
+  // forwarded, so callWithRetry's own retry-warning log printed
+  // "undefined got <status>" instead of naming the call that failed. Found
+  // by a test asserting on the warning text, not by inspection.
   return callWithRetry(async () => {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), geminiConfig.requestTimeoutMs);
@@ -98,19 +103,21 @@ async function post(pathSuffix, body, label) {
       throw err;
     }
     return res.json();
-  });
+  }, label);
 }
 
 /**
- * Embed a batch of texts. Returns an array of float arrays, same order as input.
+ * Embed a single text. Kept for callers that only ever have one text (query
+ * embedding at retrieval time) - embedTextsBatch below is what embed.mjs
+ * uses for the corpus, because one-request-per-chunk was the actual reason a
+ * 170-chunk embed run took 22 minutes: the throttle, not the API, dominated
+ * that time. This function still exists because a single query embedding
+ * doesn't benefit from batching and shouldn't wait to be grouped with others.
  * @param {string[]} texts
  * @param {"RETRIEVAL_DOCUMENT"|"RETRIEVAL_QUERY"} taskType
  */
 export async function embedTexts(texts, taskType) {
   const out = [];
-  // One request per text rather than a batch call - simpler error attribution
-  // (we know exactly which chunk failed) and the corpus here is ~150-300
-  // chunks, not large enough for batching to matter.
   for (const [i, text] of texts.entries()) {
     const body = {
       model: `models/${geminiConfig.embeddingModel}`,
@@ -130,6 +137,98 @@ export async function embedTexts(texts, taskType) {
     out.push(values);
   }
   return out;
+}
+
+// Google does not document a maximum request count per batchEmbedContents
+// call (checked https://ai.google.dev/api/embeddings and the developer
+// forum directly - neither states one). 25 is chosen to be comfortably under
+// anything plausible rather than measured against a real ceiling, since
+// there is no documented ceiling to measure against.
+const DEFAULT_BATCH_SIZE = 25;
+
+/**
+ * Embeds many texts using batchEmbedContents: one HTTP request for up to
+ * `batchSize` texts, instead of one request per text. This is the actual fix
+ * for embedding taking 22 minutes over 170 chunks at a conservative 8
+ * requests/minute throttle - that time is almost entirely the throttle
+ * waiting between requests, not the API doing work, so cutting the request
+ * count by ~25x cuts the wall-clock time by roughly the same factor without
+ * needing to touch the rate limit at all.
+ *
+ * If a batch request fails, it is split in half and retried rather than
+ * abandoning the whole batch - this keeps error attribution close to what
+ * embedTexts gives per-item, in exchange for a few extra requests only on
+ * the batch that actually failed.
+ *
+ * @param {{ id: string, text: string }[]} items
+ * @param {"RETRIEVAL_DOCUMENT"|"RETRIEVAL_QUERY"} taskType
+ * @param {{ batchSize?: number, onGroupDone?: (results: Map<string, number[]>) => Promise<void>|void }} [options]
+ *   onGroupDone is called with the vectors for each completed group of API
+ *   calls (a full batch, or the pieces a failed batch was split into) as
+ *   soon as they are known, so the caller can checkpoint incrementally
+ *   instead of losing everything since the last write if the run stops
+ *   partway through.
+ * @returns {Promise<Map<string, number[]>>} every vector keyed by item id
+ */
+export async function embedTextsBatch(items, taskType, options = {}) {
+  const batchSize = options.batchSize ?? DEFAULT_BATCH_SIZE;
+  const results = new Map();
+
+  async function embedGroup(group) {
+    if (group.length === 0) return;
+    if (group.length === 1) {
+      const [vector] = await embedTexts([group[0].text], taskType);
+      results.set(group[0].id, vector);
+      await options.onGroupDone?.(new Map([[group[0].id, vector]]));
+      return;
+    }
+
+    const body = {
+      requests: group.map((item) => ({
+        model: `models/${geminiConfig.embeddingModel}`,
+        content: { parts: [{ text: item.text }] },
+        taskType,
+        outputDimensionality: geminiConfig.embeddingDimensions,
+      })),
+    };
+
+    try {
+      const json = await post(
+        `models/${geminiConfig.embeddingModel}:batchEmbedContents`,
+        body,
+        `embedBatch[${group.length} items]`,
+      );
+      const embeddings = json?.embeddings;
+      if (!Array.isArray(embeddings) || embeddings.length !== group.length) {
+        throw new Error(
+          `batchEmbedContents returned ${embeddings?.length ?? "no"} embeddings for ${group.length} requests`,
+        );
+      }
+      const groupResults = new Map();
+      group.forEach((item, i) => {
+        const values = embeddings[i]?.values;
+        if (!Array.isArray(values)) {
+          throw new Error(`batch item ${i} (${item.id}) has no embedding.values`);
+        }
+        results.set(item.id, values);
+        groupResults.set(item.id, values);
+      });
+      await options.onGroupDone?.(groupResults);
+    } catch (err) {
+      if (group.length === 1) throw err; // nothing smaller to fall back to
+      console.warn(
+        `  [gemini] batch of ${group.length} failed (${err.message.slice(0, 100)}), splitting and retrying`,
+      );
+      const mid = Math.ceil(group.length / 2);
+      await embedGroup(group.slice(0, mid));
+      await embedGroup(group.slice(mid));
+    }
+  }
+
+  for (let i = 0; i < items.length; i += batchSize) {
+    await embedGroup(items.slice(i, i + batchSize));
+  }
+  return results;
 }
 
 /**
