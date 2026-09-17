@@ -96,6 +96,21 @@ data/derived/**
 services/evaluation/reports/**
 !services/evaluation/reports/.gitkeep
 
+# --- Phase 0 spike (spike/) --------------------------------------------------
+# Throwaway per docs/roadmap.md. sources.yaml, the code and golden_set/ are
+# committed so the spike is reproducible and reviewable; everything derived
+# from running it is not - regenerate by running the scripts.
+spike/corpus/raw/*.pdf
+spike/corpus/raw/download-report.json
+spike/corpus/extracted/*.txt
+spike/corpus/extracted/extraction-report.json
+spike/corpus/chunks/*.json
+spike/reports/*.json
+spike/reports/*.md
+!spike/reports/.gitkeep
+!spike/reports/extraction-notes.md
+!spike/reports/syllabus-scope-finding.md
+
 # --- Editors & OS -----------------------------------------------------------
 .vscode/*
 !.vscode/extensions.json

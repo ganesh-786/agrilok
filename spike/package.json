@@ -1,0 +1,24 @@
+{
+  "name": "agrilok-phase0-spike",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Throwaway Phase 0 validation spike. Not published, not part of the agrilok package graph. See README.md.",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "download": "node download.mjs",
+    "extract": "node extract.mjs",
+    "chunk": "node chunk.mjs",
+    "embed": "node embed.mjs",
+    "ask": "node ask.mjs",
+    "evaluate": "node evaluate.mjs",
+    "all": "npm run download && npm run extract && npm run chunk && npm run embed"
+  },
+  "dependencies": {
+    "pdf-parse": "^1.1.1",
+    "js-yaml": "^4.1.0",
+    "dotenv": "^16.4.5"
+  }
+}
