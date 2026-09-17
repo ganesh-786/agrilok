@@ -109,6 +109,7 @@ spike/reports/*.json
 spike/reports/*.md
 !spike/reports/.gitkeep
 !spike/reports/extraction-notes.md
+!spike/reports/syllabus-scope-finding.md
 
 # --- Editors & OS -----------------------------------------------------------
 .vscode/*
