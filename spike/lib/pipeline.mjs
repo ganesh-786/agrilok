@@ -51,9 +51,32 @@ export async function answerQuestion(question, filters = {}) {
   }
 
   // The model is instructed to refuse in-text when sources are insufficient
-  // (see lib/prompt.mjs rule 1). Detect that so evaluate.mjs can report it
-  // as a refusal rather than scoring it as a normal answer.
-  const modelRefused = /does not contain enough information to answer/i.test(generation.text || "");
+  // (see lib/prompt.mjs rule 1), and to say a specific exact phrase when it
+  // does. It doesn't always use that exact phrase - a real run produced
+  // "the text only lists examination syllabus topics ... rather than
+  // providing detailed definitions or technical explanations", which is a
+  // genuine refusal in substance (the model correctly declined to invent an
+  // explanation) that the original single-phrase match missed entirely.
+  //
+  // This is a stopgap, not a fix for the underlying problem: matching
+  // free-text prose to recover a yes/no signal is inherently fragile, and
+  // the citation regex in extractCitations() below hit the same family of
+  // bug for the same reason. The real fix is Gemini's structured output
+  // (a `sufficient: boolean` field instead of prose to parse) - raised and
+  // deliberately deferred earlier rather than built speculatively. This
+  // patch only reduces one instance of the problem it would solve outright.
+  //
+  // The added pattern is deliberately narrow: it requires the contrastive
+  // structure ("rather than" / "without" + "providing/giving" + "detailed
+  // definitions/explanations"), not just the word "list" - SMOKE-01 and
+  // SMOKE-04 are complete, correct answers that also say "listed" and would
+  // be wrongly caught by anything looser. Verified against real answer text
+  // from both categories before this was applied, not assumed safe.
+  const EXACT_REFUSAL_PHRASE = /does not contain enough information to answer/i;
+  const HEDGED_REFUSAL_PATTERN =
+    /\b(rather than|without)\b.{0,40}\b(providing|giving)?\b.{0,20}\b(detailed )?(definitions?|explanations?|technical explanations?)\b/i;
+  const modelRefused =
+    EXACT_REFUSAL_PHRASE.test(generation.text || "") || HEDGED_REFUSAL_PATTERN.test(generation.text || "");
 
   const citedSourceIds = extractCitations(generation.text || "", results);
 

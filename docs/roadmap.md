@@ -34,6 +34,15 @@ evidence.
 
 - [ ] Phase 0 spike completed, faithfulness manually checked against **at least
       20** real past-paper questions.
+      **Not yet.** A throwaway spike (deleted once this gate resolves; see
+      [ADR-0003](adr/0003-retrieval-grounded-answers-only.md) and
+      [docs/evaluation.md](evaluation.md#phase-0)) ran 13 hand-written smoke
+      test questions, not real past-paper ones, against a real 18-document
+      corpus and a live model, read by hand against the actual cited text.
+      Zero fabrications across 13 questions - a genuinely encouraging signal,
+      not gate evidence. Two findings recorded in
+      [docs/evaluation.md](evaluation.md#phase-0) either way. Still needed:
+      the same review against real past-paper questions.
 - [ ] Current, **in-force** syllabus PDFs confirmed for both levels - verified
       against the freshest official notice, not a third-party blog or summary.
       Syllabi get revised; anything cited during research needs a fresh check.

@@ -89,6 +89,33 @@ hand** against at least 20 real past-paper questions, as required by the
 [go/no-go gate](roadmap.md#gono-go-gate). Record the results; they become the
 first baseline.
 
+A first, smaller pass ran 13 hand-written smoke-test questions (not yet the 20
+real past-paper questions the gate needs - see the spike's own
+`golden_set/README.md`) against a real corpus and a live model. Read by hand,
+chunk by chunk, against the actual cited text, not just checked for a
+refuse/answer match. Two findings worth carrying into the real evaluation,
+neither of them a fabrication, both real:
+
+**A model can substantively refuse without using the exact refusal phrase
+the prompt asked for.** One answer said, in its own words, that the source
+only listed topic headings rather than explaining them - a correct, honest
+refusal - but didn't match the single phrase the system instruction
+requested, so string-matching against it undercounted refusals. Broadened,
+but not solved: matching prose to recover a yes/no signal is inherently
+fragile, and the same fragility already broke citation extraction once. A
+harness relying on regex-matched prose for either signal should expect more
+of this, not treat this instance as the last one.
+
+**A faithful answer can still blur real structural boundaries.** One answer
+correctly cited only real syllabus headings - nothing fabricated - but
+grouped headings from genuinely separate, separately-scored syllabus
+sections under one invented thematic label, with connecting prose that read
+as more explanatory than the source's bare list actually supports. Faithful
+to the facts, but not faithful to the source's own structure - worth a
+distinct check in the real evaluation, since "does every claim trace to the
+source" does not catch "does the answer imply an organisation the source
+doesn't have."
+
 ## Operational metrics
 
 Separate from answer quality, and measured from the first deployment:
