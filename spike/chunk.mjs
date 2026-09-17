@@ -13,10 +13,18 @@
 // approximation - it is not acceptable for anything that has to fit a hard
 // token limit, which is why Phase 1 needs a real tokenizer and this note
 // exists to say so plainly rather than let the approximation go unnoticed.
+//
+// Legacy-font gibberish lines are removed here, before chunking, and the
+// count is recorded on every chunk from that source. The extracted .txt files
+// are left untouched as evidence. Without this, gibberish took up retrieval
+// slots: the first live query pulled LUM-06-021, which is nothing but Preeti
+// bytes, into its six results.
+import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
 import yaml from "js-yaml";
 import { paths, chunking } from "./lib/config.mjs";
+import { removeGibberishLines } from "./lib/corruption.mjs";
 
 const WORDS_PER_TOKEN = 0.75; // see file header
 
@@ -82,17 +90,17 @@ function chunkDocument(text, targetTokens, overlapRatio) {
 
     if (currentTokens + paraTokens > targetTokens && current.length > 0) {
       flush();
-      // Overlap: carry the tail of the previous chunk forward by
-      // overlapRatio of the target size, measured in paragraphs from the end.
-      const overlapTokenBudget = Math.round(targetTokens * overlapRatio);
-      const tail = [];
-      let tailTokens = 0;
-      for (let i = current.length - 1; i >= 0 && tailTokens < overlapTokenBudget; i--) {
-        tail.unshift(current[i]);
-        tailTokens += approxTokens(current[i]);
-      }
-      current = tail;
-      currentTokens = tailTokens;
+      // Overlap: carry the last overlapRatio of the target forward, cut at
+      // word level. This used to walk back whole paragraphs until the budget
+      // was met, which always kept at least one paragraph however large - a
+      // 330-word paragraph was carried forward against a 45-word budget, and
+      // in 57 of 214 adjacent chunk pairs the carried text was more than
+      // twice the budget. Those near-duplicates then took several of the six
+      // retrieval slots at once.
+      const overlapWords = Math.round(targetTokens * overlapRatio * WORDS_PER_TOKEN);
+      const tailText = current.join("\n\n").split(/\s+/).filter(Boolean).slice(-overlapWords).join(" ");
+      current = tailText ? [tailText] : [];
+      currentTokens = approxTokens(tailText);
     }
 
     current.push(para);
@@ -111,6 +119,7 @@ async function main() {
 
   const allChunks = [];
   let skipped = 0;
+  let totalDropped = 0;
 
   for (const doc of manifest.documents) {
     const textPath = path.join(paths.extracted, `${doc.id}.txt`);
@@ -121,12 +130,20 @@ async function main() {
       continue;
     }
 
-    const rawChunks = chunkDocument(text, chunking.targetTokens, chunking.overlapRatio);
+    const { text: cleanText, droppedLines } = removeGibberishLines(text);
+    totalDropped += droppedLines;
+
+    const rawChunks = chunkDocument(cleanText, chunking.targetTokens, chunking.overlapRatio);
     rawChunks.forEach((c, idx) => {
       allChunks.push({
         chunkId: `${doc.id}-${String(idx).padStart(3, "0")}`,
         text: c.text,
+        // embed.mjs compares this against the hash stored with each vector,
+        // so a chunk whose text changes gets re-embedded instead of silently
+        // keeping a vector computed from the old text.
+        contentHash: crypto.createHash("sha256").update(c.text).digest("hex"),
         approxTokens: approxTokens(c.text),
+        gibberishLinesDroppedFromSource: droppedLines,
         sectionHeading: c.sectionHeading,
         chunkIndex: idx,
         // Provenance + classification, carried straight from sources.yaml -
@@ -142,7 +159,8 @@ async function main() {
         docType: doc.doc_type,
       });
     });
-    console.log(`${doc.id}  ${rawChunks.length} chunks`);
+    const note = droppedLines ? `  (${droppedLines} legacy-font lines dropped)` : "";
+    console.log(`${doc.id}  ${rawChunks.length} chunks${note}`);
   }
 
   await fs.writeFile(paths.chunksIndex, JSON.stringify(allChunks, null, 2));
@@ -154,6 +172,9 @@ async function main() {
     `\n${allChunks.length} chunks written to corpus/chunks/chunks.json ` +
       `(target ${chunking.targetTokens} tokens, actual average ~${avgTokens}).`,
   );
+  if (totalDropped) {
+    console.log(`${totalDropped} legacy-font lines dropped before chunking. Run embed.mjs to refresh changed chunks.`);
+  }
   if (skipped) console.log(`${skipped} document(s) skipped - run extract.mjs first.`);
 }
 

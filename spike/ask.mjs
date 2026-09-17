@@ -62,6 +62,18 @@ async function main() {
 }
 
 main().catch((err) => {
-  console.error("ask.mjs failed:", err);
+  if (err.exhausted) {
+    // A daily/per-minute quota being used up is an expected failure mode on
+    // free tier, not a bug - a stack trace is the wrong way to report it.
+    // See lib/gemini.mjs buildApiError and spike/.env.example for why the
+    // confirmed real ceiling (20 requests/day for gemini-2.5-flash) makes
+    // this a routine thing to hit, not an exception.
+    console.error(`\nOut of quota: ${err.message}\n`);
+    console.error("This will not resolve by retrying. Check https://aistudio.google.com/rate-limit");
+    console.error("for the reset time, or switch GEMINI_GENERATION_MODEL in .env to a model with");
+    console.error("more remaining headroom for the rest of today.");
+  } else {
+    console.error("ask.mjs failed:", err);
+  }
   process.exitCode = 1;
 });

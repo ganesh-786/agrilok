@@ -10,8 +10,12 @@
 // Kalimati) rather than Unicode. That produces neither clean text nor an
 // extraction error - it produces plausible-looking garbage that would enter
 // the corpus silently if nothing checked for it. Running this against all 18
-// real documents found exactly that in 8 of them (see
+// real documents found exactly that in 10 of them (see
 // reports/extraction-notes.md) - this is not a hypothetical concern.
+//
+// This script only measures and reports. The raw extracted text is written
+// unmodified, because it is the evidence of what the PDF actually contained.
+// Removing gibberish lines happens downstream in chunk.mjs, on derived data.
 //
 // Backend choice was also decided by running both on the real corpus, not by
 // assumption: pdf-parse (pure JS, pdf.js-based) is primary because it
@@ -28,6 +32,7 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import yaml from "js-yaml";
 import { paths } from "./lib/config.mjs";
+import { analyzeText } from "./lib/corruption.mjs";
 
 const execFileAsync = promisify(execFile);
 
@@ -81,50 +86,6 @@ async function extractText(pdfPath) {
   throw new Error("both pdf-parse and pdftotext failed or are unavailable");
 }
 
-// --- Corruption heuristics -------------------------------------------------
-// See the file header. This is a heuristic flag for human review, not a
-// certainty - consistent with how the real pipeline treats extraction
-// confidence (docs/rag-pipeline.md).
-
-const DEVANAGARI_RE = /[ऀ-ॿ]/g;
-const REPLACEMENT_CHAR_RE = /�/g;
-const ENGLISH_WORD_RE = /\b[A-Za-z]{3,}\b/g;
-// Characters that are near-absent from real prose (English or Devanagari)
-// but appear constantly when a legacy 8-bit Nepali font (Preeti, Kalimati)
-// is extracted as if it were Unicode - the font maps Devanagari matras and
-// conjuncts onto ASCII punctuation code points, so "प्रदेश" comes out as
-// something like "k|b]z". Found empirically, not from a spec: an English-
-// word-count heuristic tried first was fooled by documents that genuinely
-// mix real English phrases ("Written Examination", "Group Test") with
-// Preeti gibberish in the same file - this symbol-density signal is what
-// actually separates the two cleanly on all 18 real source documents.
-const SUSPICIOUS_SYMBOL_RE = /[\]\[|^~{}\\]/g;
-const SUSPICIOUS_SYMBOL_DENSITY_THRESHOLD = 0.01; // clean docs measured 0.0000-0.0001; corrupted ones 0.008-0.085
-
-function analyzeExtraction(text) {
-  const nonWhitespace = text.replace(/\s/g, "");
-  const totalChars = nonWhitespace.length;
-  const devanagariCount = (text.match(DEVANAGARI_RE) || []).length;
-  const replacementCount = (text.match(REPLACEMENT_CHAR_RE) || []).length;
-  const englishWords = (text.match(ENGLISH_WORD_RE) || []).length;
-  const suspiciousSymbolCount = (text.match(SUSPICIOUS_SYMBOL_RE) || []).length;
-  const devanagariRatio = totalChars > 0 ? devanagariCount / totalChars : 0;
-  const suspiciousSymbolDensity = totalChars > 0 ? suspiciousSymbolCount / totalChars : 0;
-
-  const looksLikeLegacyFontGibberish =
-    totalChars > 200 && suspiciousSymbolDensity > SUSPICIOUS_SYMBOL_DENSITY_THRESHOLD;
-
-  return {
-    totalChars,
-    devanagariCount,
-    devanagariRatio: Number(devanagariRatio.toFixed(4)),
-    replacementCharCount: replacementCount,
-    englishWordCount: englishWords,
-    suspiciousSymbolDensity: Number(suspiciousSymbolDensity.toFixed(4)),
-    flaggedAsLikelyCorrupted: looksLikeLegacyFontGibberish || replacementCount > totalChars * 0.05,
-  };
-}
-
 // --- Main ------------------------------------------------------------------
 
 async function main() {
@@ -151,15 +112,15 @@ async function main() {
 
     try {
       const { text, backend: usedBackend } = await extractText(pdfPath);
-      const analysis = analyzeExtraction(text);
+      const analysis = analyzeText(text);
 
       const outPath = path.join(paths.extracted, `${doc.id}.txt`);
       await fs.writeFile(outPath, text, "utf8");
 
-      const flag = analysis.flaggedAsLikelyCorrupted ? "  ⚠ FLAGGED (see below)" : "";
+      const flag = analysis.gibberishLines ? "  (legacy-font lines found)" : "";
       console.log(
         `OK - ${analysis.totalChars} chars, ${analysis.devanagariCount} Devanagari, ` +
-          `${analysis.englishWordCount} English words [${usedBackend}]${flag}`,
+          `${analysis.gibberishLines}/${analysis.substantialLines} gibberish lines [${usedBackend}]${flag}`,
       );
 
       report.push({
@@ -176,23 +137,24 @@ async function main() {
 
   await fs.writeFile(paths.extractionReport, JSON.stringify(report, null, 2));
 
-  const flagged = report.filter((r) => r.flaggedAsLikelyCorrupted);
+  const affected = report.filter((r) => r.gibberishLines > 0);
   const failed = report.filter((r) => r.status !== "extracted");
 
   console.log(`\n${report.length - failed.length}/${report.length} extracted.`);
-  if (flagged.length) {
+  if (affected.length) {
+    const total = affected.reduce((sum, r) => sum + r.gibberishLines, 0);
     console.log(
-      `\n${flagged.length} document(s) flagged as possibly using legacy Devanagari font encoding ` +
-        `(text layer present, but reads as neither real Devanagari Unicode nor real English):`,
+      `\n${affected.length} document(s) contain legacy-font Devanagari lines (${total} lines in total):`,
     );
-    for (const f of flagged) console.log(`  - ${f.id}`);
+    for (const r of affected) {
+      console.log(`  - ${r.id}: ${r.gibberishLines}/${r.substantialLines} lines`);
+    }
     console.log(
-      `\nThese chunks will still enter the corpus for this spike - excluding them would hide exactly ` +
-        `the finding Phase 0 needs. But treat any faithfulness result touching them with real caution, ` +
-        `and read reports/extraction-notes.md before trusting an answer sourced from one.`,
+      `\nThe raw text above is kept as extracted. chunk.mjs drops these lines from the chunks it ` +
+        `builds and records how many it dropped. See reports/extraction-notes.md.`,
     );
   } else if (report.length - failed.length > 0) {
-    console.log(`No documents flagged for likely legacy-font corruption.`);
+    console.log(`No legacy-font lines found.`);
   }
   if (failed.length) {
     console.log(`\n${failed.length} document(s) could not be processed:`);

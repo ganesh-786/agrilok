@@ -33,7 +33,27 @@ async function loadCorpus() {
   ]);
   const chunks = JSON.parse(chunksRaw);
   const store = JSON.parse(storeRaw);
-  cache = { chunks, vectors: store.vectors };
+  const hashes = store.hashes || {};
+
+  // Only search vectors computed from the chunk's current text. A chunk with
+  // a missing or mismatched hash is left out rather than matched against a
+  // vector that describes different text. See embed.mjs isFresh().
+  const stale = chunks.filter((c) => store.vectors[c.chunkId] && hashes[c.chunkId] !== c.contentHash);
+  const missing = chunks.filter((c) => !store.vectors[c.chunkId]);
+  if (stale.length || missing.length) {
+    console.warn(
+      `  [retrieve] ${stale.length} stale and ${missing.length} unembedded chunk(s) excluded from search. ` +
+        `Run \`node embed.mjs\` to include them.`,
+    );
+  }
+  const vectors = {};
+  for (const c of chunks) {
+    if (store.vectors[c.chunkId] && hashes[c.chunkId] === c.contentHash) {
+      vectors[c.chunkId] = store.vectors[c.chunkId];
+    }
+  }
+
+  cache = { chunks, vectors };
   return cache;
 }
 

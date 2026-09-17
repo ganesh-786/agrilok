@@ -7,22 +7,36 @@ describe one run of the spike.
 
 ## The finding
 
-**8 of the 18 verified source documents (44%) have a text layer that
-extracts without error but is unreadable Devanagari** — not because the PDF
-is a scan, but because the Devanagari content is encoded in a legacy 8-bit
-font (Preeti, Kalimati, or similar) rather than Unicode. Neither extraction
-backend tested (pdf-parse / pdf.js, or this environment's pdftotext, an xpdf
-4.06 build) can recover real text from these — the bytes that come out are
-literal, not a decoding bug on the tool's part. `प्रदेश लोक सेवा आयोग`
-("Provincial Public Service Commission") extracts as `k|b]z nf]s ;]jf cfof]u`.
+**Much of the Devanagari in these official documents extracts without error
+and is still unreadable** — not because the PDF is a scan, but because it is
+encoded in a legacy 8-bit font (Preeti, Kalimati, or similar) rather than
+Unicode. Neither extraction backend tested (pdf-parse / pdf.js, or this
+environment's pdftotext, an xpdf 4.06 build) can recover real text from it —
+the bytes that come out are literal, not a decoding bug on the tool's part.
+`प्रदेश लोक सेवा आयोग` ("Provincial Public Service Commission") extracts as
+`k|b]z nf]s ;]jf cfof]u`.
 
-Affected: LUM-05, LUM-06, LUM-07, LUM-08, LUM-09, LUM-10, SUD-02, SUD-04.
+Measured per line, across all 18 documents: **785 legacy-font lines in 10
+documents.**
 
-Not affected — these extracted genuine Devanagari Unicode cleanly: LUM-01,
-LUM-02, LUM-03, LUM-04, SUD-01, SUD-03, GAN-01, GAN-03, GAN-04. GAN-02 is a
-borderline mixed case (real Devanagari present, some elevated symbol density
-alongside it — see the detector below); not flagged, but worth a manual
-glance before trusting it fully.
+| Document | Gibberish lines / substantial lines |
+|---|---|
+| SUD-04 | 195 / 234 |
+| SUD-02 | 192 / 229 |
+| LUM-08 | 135 / 162 |
+| LUM-06 | 59 / 505 |
+| LUM-05 | 52 / 420 |
+| LUM-07 | 42 / 217 |
+| LUM-09 | 42 / 231 |
+| LUM-10 | 42 / 241 |
+| GAN-02 | 25 / 338 |
+| GAN-04 | 1 / 43 |
+
+The other 8 (LUM-01 to LUM-04, SUD-01, SUD-03, GAN-01, GAN-03) contain none.
+
+Three documents are almost entirely unreadable. The rest are mostly clean
+English with Preeti Nepali mixed in, which is why document-level detection
+turned out to be the wrong unit — see below.
 
 ## Why this matters beyond this spike
 
@@ -32,45 +46,54 @@ it. This finding shows a third case the ADR doesn't name: **text layer
 present, extracts cleanly, and is still wrong** — because it isn't Unicode
 text at all, just bytes that render correctly only through a specific
 non-standard font. A pipeline that only checks "did extraction produce
-output" would ingest this silently and correctly, with no error, no low
-"confidence" score from an OCR engine — nothing to catch it except actually
-looking at what came out.
+output" would ingest this silently, with no error and no low confidence score
+from an OCR engine — nothing to catch it except actually looking at what came
+out.
 
-This is exactly the mechanism [docs/nepali-devanagari.md](../../docs/nepali-devanagari.md)
-warns about in the abstract ("Devanagari OCR on poor scans degrades badly");
-this spike found the same failure mode with **zero OCR involved** and on
-**44% of a small, real sample** — a materially higher rate than a general
-"handle it if it comes up" plan would suggest is needed. Phase 1's ingestion
-service should detect this class of file specifically, not fold it into the
-generic OCR-confidence path.
+[docs/nepali-devanagari.md](../../docs/nepali-devanagari.md) warns about
+Devanagari degrading under OCR. This spike found the same outcome with **zero
+OCR involved**, in 10 of 18 real documents. Phase 1's ingestion service should
+detect this class of text specifically, not fold it into the generic
+OCR-confidence path.
 
-## The detector, and why the first version of it was wrong
+## The detector, and the two versions that were wrong
 
-`extract.mjs`'s `analyzeExtraction()` flags a document when more than 1% of
-its non-whitespace characters are drawn from a small set of symbols
-(`] [ | ^ ~ { } \`) that are near-absent from real prose but appear
-constantly when a Preeti/Kalimati-encoded byte stream is read as text — the
-font maps Devanagari matras and conjuncts onto exactly those ASCII code
-points.
+The current detector is `lib/corruption.mjs`. It works per line: a line is
+gibberish when it has no real Devanagari code point and at least 30% of its
+tokens look like Preeti fragments — symbols embedded inside a token
+(`k|b]z`, `t/sf/L`) or Latin-1 characters Preeti emits and English syllabus
+text does not (`Í å ÷ §`).
 
-The first version of this detector used "low Devanagari ratio AND low
-English-word count" instead, and it missed all 8 corrupted documents on the
-first real run. The reason: several of these files genuinely mix real
-English phrases (`Written Examination`, `Group Test`, `Interview`) with
-Preeti-gibberish Nepali in the same document, so the English-word count
-alone was high enough to suppress the flag. The fix came from actually
-running the detector against the real corpus and reading what it missed —
-not from reasoning about it in the abstract. Measured symbol density: clean
-documents 0.0000–0.0001, corrupted documents 0.0084–0.0849 (one clear
-outlier at the low end noted above, GAN-02, left unflagged deliberately).
+It got there through two wrong versions, both found by running against the
+real corpus rather than by reasoning about it:
 
-## What this means for retrieval faithfulness testing
+1. **Low Devanagari ratio and low English-word count, per document.** Missed
+   every affected document on its first run, because they mix real English
+   phrases (`Written Examination`, `Group Test`) with Preeti in the same file.
+2. **Symbol density above 1%, per document.** Correctly flagged 8 documents,
+   but the document was the wrong unit in both directions. It flagged LUM-06
+   as corrupted, yet LUM-06's soil science section is clean English that a
+   student query should be able to use. And it missed GAN-02 and GAN-04,
+   which contain real gibberish lines under a low overall density.
 
-Chunks from the 8 flagged documents are **not excluded** from this spike's
-corpus — excluding them would hide the finding rather than test its
-consequences. Any golden-set answer that cites one of these documents should
-be treated with extra scepticism during the manual faithfulness review:
-either the retrieved chunk is genuinely unreadable (in which case a faithful
-model should struggle to answer from it at all, which is itself informative)
-or it happens to be an English-language passage within an otherwise
-corrupted document.
+Measured accuracy of the line-level version on this corpus:
+
+- **No false positives** on genuine English or Unicode Devanagari. Every line
+  it flags in a "clean" document is real gibberish. One false positive found
+  during tuning (`Section A– 30 Marks`, caused by an en dash) was fixed.
+- **About 5.5% of kept lines in affected documents still carry a Preeti
+  marker.** These are mixed lines where the English half carries meaning,
+  such as `k|yd kq (Paper I): General Subject`, and they are kept on purpose.
+
+## What happens to these lines now
+
+`extract.mjs` writes the extracted text unmodified — it is the evidence of
+what the PDF contained — and reports the counts above. `chunk.mjs` removes the
+gibberish lines before chunking and records the number on every chunk from
+that source, in `gibberishLinesDroppedFromSource`.
+
+Before this, gibberish took retrieval slots. The first live query, "What are
+the main soil forming processes?", returned `LUM-06-021` as one of its six
+chunks, and that chunk is nothing but Preeti bytes. Removing gibberish does
+not by itself explain or fix that query's refusal; it only stops unreadable
+text from competing for the slots.

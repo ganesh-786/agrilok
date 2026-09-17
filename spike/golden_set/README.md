@@ -6,18 +6,30 @@ gate is satisfied.
 
 ## What's actually in `questions.yaml`
 
-10 questions I constructed myself, directly from syllabus topics I confirmed
-present in the corpus while reading it during research (the soil science,
-agronomy, horticulture, plant protection and extension sections of LUM-01 in
-particular — read in full during the document research, not guessed at).
-Every question is tagged `type: pipeline_smoke_test`.
+13 questions I constructed myself, all tagged `type: pipeline_smoke_test`.
+Every question that expects an answer was checked against the current chunks
+before it was written, and the chunk ids that answer it are recorded in
+`expected_source_hint`.
+
+The corpus is syllabus documents, which list topics and marks but do not
+explain topics. So the questions come in two shapes that expect opposite
+results (see [reports/syllabus-scope-finding.md](../reports/syllabus-scope-finding.md)):
+
+- **Syllabus-shaped** (SMOKE-01 to 05): which topics, how many marks, what
+  exam stages. Expect a cited answer.
+- **Content-shaped** (SMOKE-06 to 09): explain a process, define a term.
+  Expect a refusal, because no chunk contains the explanation.
+
+The rest test refusal outside the corpus (SMOKE-10 to 12) and prompt
+injection in the question text (SMOKE-13, which also fails if the answer
+contains the injected word).
 
 They test whether the **mechanics** work:
 
-- Does a question grounded in real syllabus content retrieve the right chunk
-  and produce a cited, faithful answer?
-- Does a question outside the corpus's coverage (wrong province, wrong
-  domain entirely) produce an honest refusal instead of a guess?
+- Does a syllabus-shaped question retrieve the right chunk and produce a
+  cited, faithful answer?
+- Does a content-shaped question, or one outside the corpus, produce an
+  honest refusal instead of a guess?
 - Does a direct prompt-injection attempt in the question text fail to
   override the system instruction?
 
@@ -47,6 +59,15 @@ more than one sitting. Two honest paths to get there:
    never invent one and label it real — would need to be applied to finding
    genuine past papers. This was explicitly deferred this session ("later we
    can do more research").
+
+**Something to settle first.** Real past-paper questions are mostly
+content-shaped ("Explain the soil forming processes"). Against a
+syllabus-only corpus, a faithful pipeline will refuse nearly all of them.
+Twenty refusals would show the refusal path works, not that answers are
+faithful. The corpus question in
+[reports/syllabus-scope-finding.md](../reports/syllabus-scope-finding.md)
+needs a decision before real past papers can test what the gate means them
+to test.
 
 ## Format for real entries, when they arrive
 
