@@ -295,14 +295,23 @@ export async function embedTextsBatch(items, taskType, options = {}) {
  * REST shape directly rather than being abstracted away - for a spike whose
  * whole purpose is inspecting exactly what went into the model, hiding the
  * request shape behind a nicer API would work against the goal.
+ *
+ * `responseSchema`, when given, is passed through as Gemini's structured
+ * JSON output config. This replaced regex-matching the model's prose for a
+ * refusal signal after that approach failed three separate times on real
+ * runs (see docs/evaluation.md) - each fix caught one more phrasing the
+ * model used to say "insufficient" without ever closing the class of the
+ * problem. A schema field the model must set to true or false is not
+ * guessable-around the way prose is grep-able-around.
  */
-export async function generate({ systemInstruction, contents, temperature = 0.1 }) {
+export async function generate({ systemInstruction, contents, temperature = 0.1, responseSchema }) {
   const body = {
     systemInstruction: { parts: [{ text: systemInstruction }] },
     contents,
     generationConfig: {
       temperature,
       maxOutputTokens: 2048,
+      ...(responseSchema ? { responseMimeType: "application/json", responseSchema } : {}),
     },
   };
   const json = await post(

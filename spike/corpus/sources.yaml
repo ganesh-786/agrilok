@@ -1,4 +1,4 @@
-# Phase 0 source manifest — 22 documents, individually verified by direct
+# Phase 0 source manifest — 40 documents, individually verified by direct
 # download (HTTP 200 + application/pdf) before being listed here. See the
 # research trail in this conversation for how each was found and checked.
 #
@@ -7,9 +7,9 @@
 # collected by hand for the Phase 0 spike, exactly as docs/roadmap.md
 # specifies, and never feed a crawler.
 #
-# level: 4 | 5 | 7 | 9   (4 and 7 are the Phase 0 target; 5 and 9 are adjacent,
-#                          included because they were verified anyway and cost
-#                          nothing extra to test against)
+# level: 4 | 5 | 7 | 8 | 9   (4 and 7 are the Phase 0 target; 5, 8 and 9 are
+#                          adjacent, included because they were verified
+#                          anyway and cost nothing extra to test against)
 # province: federal | lumbini | sudurpaschim | gandaki | bagmati | koshi
 #
 # archived_via: present only on documents recovered from web.archive.org
@@ -19,6 +19,15 @@
 # recover a document that was verifiably once published - fair-dealing
 # under NOTICE turns on what the government body actually published, not on
 # whether its web server still happens to serve that exact path today.
+#
+# federal (psc.gov.np) note: the site was rebuilt as a client-rendered app
+# since these were originally indexed, so every previously-published URL
+# under /uploads/course/ or /assets/uploads/files/ now serves the app shell
+# instead of the file. /site_uploads/course/ is the current, live path.
+# Some federal exams publish their syllabus as two separate PDFs (a general
+# scheme + Paper I document, and a standalone Paper II technical document);
+# where the second file adds real content rather than repeating the first,
+# both are listed as separate entries and the note says so.
 
 documents:
   - id: LUM-01
@@ -256,3 +265,201 @@ documents:
     verified_on: "2026-09-17"
     verified_bytes: 396368
     note: "Live URL now 404s (Koshi's site reorganized its file storage since this was indexed). Recovered from Wayback and content-verified: genuine Unicode Devanagari, extracts cleanly, no legacy-font issue. First Koshi Province document in this corpus."
+
+  - id: FED-01
+    title: "Agriculture Service, Fisheries Group, Gazetted Third Class Officer Level 7"
+    url: https://psc.gov.np/site_uploads/course/20231110073438654ddd0ed63fe.pdf
+    province: federal
+    level: 7
+    groups: [fisheries]
+    doc_type: curriculum
+    verified_on: "2026-09-17"
+    verified_bytes: 186269
+    note: "First federal (psc.gov.np) document in this corpus - the corpus previously had provincial coverage only. Content confirmed as the complete syllabus (exam scheme, Paper I general, and Paper II technical topics all present in this one file, verified by reading the extracted text end to end)."
+
+  - id: FED-02
+    title: "Agriculture Service, Veterinary Group, Gazetted Third Class Officer Level 7"
+    url: https://psc.gov.np/site_uploads/course/20231110080101654de33d1fb02.pdf
+    province: federal
+    level: 7
+    groups: [veterinary]
+    doc_type: curriculum
+    verified_on: "2026-09-17"
+    verified_bytes: 265079
+    note: "A second, shorter PDF (Paper II only) is also published at this exam's page and was checked against this one - it is a subset of this file's content, not additional material, so only this complete version is listed."
+
+  - id: FED-03
+    title: "Agriculture Service, Food Nutrition and Quality Control Group, Gazetted Third Class Officer Level 7 (Paper I and exam scheme)"
+    url: https://psc.gov.np/site_uploads/course/20231110080332654de3d45527f.pdf
+    province: federal
+    level: 7
+    groups: [food_nutrition_quality_control]
+    doc_type: curriculum
+    verified_on: "2026-09-17"
+    verified_bytes: 297255
+    note: "Published alongside FED-04 as a second file for the same exam. Checked for overlap by searching each file's extracted text for the other's distinctive section headings - this file covers the exam scheme, Paper I, and part of the Paper II technical syllabus (nutrition, food engineering); it does not contain FED-04's post-harvest and food processing section, so both are listed."
+
+  - id: FED-04
+    title: "Agriculture Service, Food Nutrition and Quality Control Group, Gazetted Third Class Officer Level 7 (Paper II, post-harvest and food processing)"
+    url: https://psc.gov.np/site_uploads/course/20231110080332654de3d45527f1.pdf
+    province: federal
+    level: 7
+    groups: [food_nutrition_quality_control]
+    doc_type: curriculum
+    verified_on: "2026-09-17"
+    verified_bytes: 52358
+    note: "Companion file to FED-03 for the same exam - see that entry's note. This file's post-harvest and food processing technology content does not appear in FED-03."
+
+  - id: FED-05
+    title: "Agriculture Service (Plant Protection/Agronomy/Horticulture/Agri Extension/Soil Science/Agri Econ & Marketing groups), Non-Gazetted First Class Technical Assistant Level 5"
+    url: https://psc.gov.np/site_uploads/course/2024020607480065c1e4304277d.pdf
+    province: federal
+    level: 5
+    groups: [plant_protection, agronomy, horticulture, agri_extension, soil_science, agri_economics_marketing]
+    doc_type: curriculum
+    verified_on: "2026-09-17"
+    verified_bytes: 410459
+    note: "Adjacent to the Phase 0 target (4/7), included because already verified. First federal Level 5 document in this corpus - the federal equivalent of BAG-02's multi-group Technical Assistant syllabus."
+
+  - id: FED-06
+    title: "Agriculture Service, Horticulture Group, Gazetted First Class (Joint Secretary or equivalent) Level 9"
+    url: https://psc.gov.np/site_uploads/course/202110221214046172ab0c56364.pdf
+    province: federal
+    level: 9
+    groups: [horticulture]
+    doc_type: curriculum
+    verified_on: "2026-09-17"
+    verified_bytes: 162837
+    note: "Adjacent to the Phase 0 target (4/7), included because already verified. This document also includes a page the government body itself labels \"Model Questions\" (gamma prashna) - five illustrative essay questions with mark allocations. These are the exam body's own sample questions, not a record of an administered exam, and are tagged and treated as such - not counted toward the real past-paper question requirement in the go/no-go gate."
+
+  - id: FED-07
+    title: "Agriculture Service, Veterinary Group, Gazetted First Class (Chief Veterinary Officer or equivalent) Level 9 (Paper I and exam scheme)"
+    url: https://psc.gov.np/site_uploads/course/2022110211563563625af3aa93b.pdf
+    province: federal
+    level: 9
+    groups: [veterinary]
+    doc_type: curriculum
+    verified_on: "2026-09-17"
+    verified_bytes: 127418
+    note: "Adjacent to the Phase 0 target (4/7), included because already verified. Published alongside FED-08 as a second file for the same exam; checked for overlap the same way as FED-03/FED-04 - this file does not contain FED-08's veterinary technical syllabus, so both are listed."
+
+  - id: FED-08
+    title: "Agriculture Service, Veterinary Group, Gazetted First Class (Chief Veterinary Officer or equivalent) Level 9 (Paper II, veterinary technical)"
+    url: https://psc.gov.np/site_uploads/course/2022110211563563625af3aa93b1.pdf
+    province: federal
+    level: 9
+    groups: [veterinary]
+    doc_type: curriculum
+    verified_on: "2026-09-17"
+    verified_bytes: 180369
+    note: "Companion file to FED-07 for the same exam - see that entry's note."
+
+  - id: FED-09
+    title: "Agriculture Service (Agri Extension/Horticulture/Agronomy/Plant Protection/Soil Science/Agri Econ & Marketing groups), Gazetted Third Class Officer Level 7 - Paper I (shared across all six groups)"
+    url: https://psc.gov.np/site_uploads/course/202511120734396914388f6d45e.pdf
+    province: federal
+    level: 7
+    groups: [agri_extension, horticulture, agronomy, plant_protection, soil_science, agri_economics_marketing]
+    doc_type: curriculum
+    verified_on: "2026-09-17"
+    verified_bytes: 372569
+    note: "The document itself states an effective date of 2082/07/20 BS (around November 2025) - the most recently dated syllabus in this corpus. Its own text explains that Paper I content is identical across all six listed groups, but Paper II is group-specific and published separately per group. This document is Paper I only. FED-10 is the Paper II companion for Agri Econ & Marketing specifically, confirmed non-overlapping. The other five groups' own Paper II documents were not found and are not in this corpus - a student in one of those five groups gets complete general-knowledge coverage from this document but no group-specific technical Paper II content yet."
+
+  - id: FED-10
+    title: "Agriculture Service, Agri Econ & Marketing Group, Gazetted Third Class Officer Level 7 - Paper II (technical)"
+    url: https://psc.gov.np/site_uploads/course/202511120734396914388f6d45e1.pdf
+    province: federal
+    level: 7
+    groups: [agri_economics_marketing]
+    doc_type: curriculum
+    verified_on: "2026-09-17"
+    verified_bytes: 43107
+    note: "Companion file to FED-09 for the Agri Econ & Marketing group specifically - see that entry's note. Together, FED-09 and FED-10 are a complete two-paper syllabus for this one group; the other five groups in FED-09 have Paper I only in this corpus."
+
+  - id: FED-11
+    title: "Agriculture Service, Plant Protection Group, Gazetted Second Class (Under Secretary or equivalent) Level 8 - Paper I (general and administration)"
+    url: https://psc.gov.np/site_uploads/course/2021102402264961756d295bd36.pdf
+    province: federal
+    level: 8
+    groups: [plant_protection]
+    doc_type: curriculum
+    verified_on: "2026-09-17"
+    verified_bytes: 115415
+    note: "New level tier for this corpus (previously 4/5/7/9 only) - adjacent to the Phase 0 target (4/7), added at the user's request after Level 8 documents kept surfacing during federal research. Published alongside FED-12 as a second file for the same exam; confirmed non-overlapping the same way as the other paired documents in this corpus."
+
+  - id: FED-12
+    title: "Agriculture Service, Plant Protection Group, Gazetted Second Class (Under Secretary or equivalent) Level 8 - Paper II (technical: pesticide policy, entomology)"
+    url: https://psc.gov.np/site_uploads/course/2021102402264961756d295bd361.pdf
+    province: federal
+    level: 8
+    groups: [plant_protection]
+    doc_type: curriculum
+    verified_on: "2026-09-17"
+    verified_bytes: 108747
+    note: "Companion file to FED-11 for the same exam - see that entry's note."
+
+  - id: FED-13
+    title: "Agriculture Service, Horticulture Group, Gazetted Second Class (Under Secretary or equivalent) Level 8 - Paper I (general and administration)"
+    url: https://psc.gov.np/site_uploads/course/20211024025102617572d668f14.pdf
+    province: federal
+    level: 8
+    groups: [horticulture]
+    doc_type: curriculum
+    verified_on: "2026-09-17"
+    verified_bytes: 134005
+    note: "New level tier for this corpus - see FED-11's note. Published alongside FED-14 as a second file for the same exam; confirmed non-overlapping."
+
+  - id: FED-14
+    title: "Agriculture Service, Horticulture Group, Gazetted Second Class (Under Secretary or equivalent) Level 8 - Paper II (technical: fruit orchard establishment and management)"
+    url: https://psc.gov.np/site_uploads/course/20211024025102617572d668f141.pdf
+    province: federal
+    level: 8
+    groups: [horticulture]
+    doc_type: curriculum
+    verified_on: "2026-09-17"
+    verified_bytes: 151152
+    note: "Companion file to FED-13 for the same exam - see that entry's note."
+
+  - id: FED-15
+    title: "Agriculture Service, Agronomy Group, Gazetted Second Class (Under Secretary or equivalent) Level 8 - Paper I (general and administration)"
+    url: https://psc.gov.np/site_uploads/course/2021102402541361757395d3917.pdf
+    province: federal
+    level: 8
+    groups: [agronomy]
+    doc_type: curriculum
+    verified_on: "2026-09-17"
+    verified_bytes: 107059
+    note: "New level tier for this corpus - see FED-11's note. Its Paper II technical companion (FED-16) is an older 2016 posting kept alongside this 2021 Paper I - confirmed as genuinely distinct, non-overlapping content, not a stale duplicate."
+
+  - id: FED-16
+    title: "Agriculture Service, Agronomy Group, Gazetted Second Class (Under Secretary or equivalent) Level 8 - Paper II (technical: crop production and management)"
+    url: https://psc.gov.np/site_uploads/course/2016100710413157f7d3bfaa0961.pdf
+    province: federal
+    level: 8
+    groups: [agronomy]
+    doc_type: curriculum
+    verified_on: "2026-09-17"
+    verified_bytes: 73666
+    note: "Companion file to FED-15 for the same exam - see that entry's note. Dated 2016, older than FED-15's 2021 Paper I, but confirmed by content to be the still-published Paper II for this exam, not an unrelated or superseded document."
+
+  - id: FED-17
+    title: "Agriculture Service, Veterinary Group, Gazetted Second Class (Under Secretary or equivalent) Level 8 - Paper I (general and administration)"
+    url: https://psc.gov.np/site_uploads/course/20211024030002617574f29419c.pdf
+    province: federal
+    level: 8
+    groups: [veterinary]
+    doc_type: curriculum
+    verified_on: "2026-09-17"
+    verified_bytes: 113819
+    note: "New level tier for this corpus - see FED-11's note. Its Paper II technical companion (FED-18) is an older 2016 posting, confirmed genuinely distinct content, same pattern as FED-15/FED-16."
+
+  - id: FED-18
+    title: "Agriculture Service, Veterinary Group, Gazetted Second Class (Under Secretary or equivalent) Level 8 - Paper II (technical: livestock and veterinary services)"
+    url: https://psc.gov.np/site_uploads/course/2016100710374957f7d2e163c551.pdf
+    province: federal
+    level: 8
+    groups: [veterinary]
+    doc_type: curriculum
+    verified_on: "2026-09-17"
+    verified_bytes: 68549
+    note: "Companion file to FED-17 for the same exam - see that entry's note."
