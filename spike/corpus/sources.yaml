@@ -1,4 +1,4 @@
-# Phase 0 source manifest — 18 documents, individually verified by direct
+# Phase 0 source manifest — 22 documents, individually verified by direct
 # download (HTTP 200 + application/pdf) before being listed here. See the
 # research trail in this conversation for how each was found and checked.
 #
@@ -10,7 +10,15 @@
 # level: 4 | 5 | 7 | 9   (4 and 7 are the Phase 0 target; 5 and 9 are adjacent,
 #                          included because they were verified anyway and cost
 #                          nothing extra to test against)
-# province: federal | lumbini | sudurpaschim | gandaki
+# province: federal | lumbini | sudurpaschim | gandaki | bagmati | koshi
+#
+# archived_via: present only on documents recovered from web.archive.org
+# because the live URL now 404s. Each was confirmed as a genuine historical
+# snapshot (real PDF, correct content, matching filename) before being
+# listed, not assumed from the URL alone. This is a legitimate way to
+# recover a document that was verifiably once published - fair-dealing
+# under NOTICE turns on what the government body actually published, not on
+# whether its web server still happens to serve that exact path today.
 
 documents:
   - id: LUM-01
@@ -200,3 +208,51 @@ documents:
     verified_on: "2026-09-16"
     verified_bytes: 169111
     note: "Adjacent to the Phase 0 target (4/7), included because already verified."
+
+  - id: BAG-01
+    title: "Agriculture Extension/Horticulture/Agronomy/Plant Protection/Agri Econ & Marketing/Soil Science, Officer Level 7"
+    url: https://ppsc.bagamati.gov.np/syllabus-files/7th-Agriculture-1669817025.pdf
+    archived_via: https://web.archive.org/web/20240812213224/https://ppsc.bagamati.gov.np/syllabus-files/7th-Agriculture-1669817025.pdf
+    province: bagmati
+    level: 7
+    groups: [agri_extension, horticulture, agronomy, plant_protection, agri_economics_marketing, soil_science]
+    doc_type: curriculum
+    verified_on: "2026-09-17"
+    verified_bytes: 634671
+    note: "Live URL now 404s (Bagmati migrated spsc.bagamati.gov.np -> ppsc.bagamati.gov.np since this was indexed). Recovered from a real Wayback Machine snapshot and content-verified: this is the same officer-level syllabus pattern as LUM-01, for Bagmati Province."
+
+  - id: BAG-02
+    title: "Plant Protection/Agronomy/Horticulture/Agri Extension/Soil Science/Agri Econ & Marketing, Technical Assistant Level 5"
+    url: https://ppsc.bagamati.gov.np/syllabus-files/%E0%A4%95%E0%A5%83%E0%A4%B7%E0%A4%BF-1672308184.pdf
+    archived_via: https://web.archive.org/web/20250502212303/https://ppsc.bagamati.gov.np/syllabus-files/%E0%A4%95%E0%A5%83%E0%A4%B7%E0%A4%BF-1672308184.pdf
+    province: bagmati
+    level: 5
+    groups: [plant_protection, agronomy, horticulture, agri_extension, soil_science, agri_economics_marketing]
+    doc_type: curriculum
+    verified_on: "2026-09-17"
+    verified_bytes: 342163
+    note: "Adjacent to the Phase 0 target (4/7). Live URL now 404s; recovered from Wayback and content-verified. Legacy Preeti-font encoding, same as several Lumbini documents - see reports/extraction-notes.md if this enters the spike corpus."
+
+  - id: BAG-03
+    title: "Agriculture / Horticulture, Level 9"
+    url: https://ppsc.bagamati.gov.np/syllabus-files/Agri-Horticulture-9th-1667998671.pdf
+    archived_via: https://web.archive.org/web/20240812111332/https://ppsc.bagamati.gov.np/syllabus-files/Agri-Horticulture-9th-1667998671.pdf
+    province: bagmati
+    level: 9
+    groups: [agriculture, horticulture]
+    doc_type: curriculum
+    verified_on: "2026-09-17"
+    verified_bytes: 356039
+    note: "Adjacent to the Phase 0 target (4/7), included because already verified. Live URL now 404s; recovered from Wayback and content-verified."
+
+  - id: KOSHI-01
+    title: "Agriculture Service, Fisheries Group, Officer Level 7"
+    url: https://psc.koshi.gov.np/files/course/20230616132740.pdf
+    archived_via: https://web.archive.org/web/20231014225911/https://psc.koshi.gov.np/files/course/20230616132740.pdf
+    province: koshi
+    level: 7
+    groups: [fisheries]
+    doc_type: curriculum
+    verified_on: "2026-09-17"
+    verified_bytes: 396368
+    note: "Live URL now 404s (Koshi's site reorganized its file storage since this was indexed). Recovered from Wayback and content-verified: genuine Unicode Devanagari, extracts cleanly, no legacy-font issue. First Koshi Province document in this corpus."
