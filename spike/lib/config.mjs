@@ -55,11 +55,16 @@ export function getApiKey() {
   return required("GEMINI_API_KEY");
 }
 
+// Defaults here are a second copy of .env.example's - see that file for
+// why each one is what it is. Kept in sync deliberately: a .env missing a
+// variable falls back to these, not to .env.example's comments, so a
+// stale default here would be silently wrong regardless of what the
+// example file says.
 export const gemini = {
-  generationModel: process.env.GEMINI_GENERATION_MODEL || "gemini-flash-latest",
+  generationModel: process.env.GEMINI_GENERATION_MODEL || "gemini-2.5-flash",
   embeddingModel: process.env.GEMINI_EMBEDDING_MODEL || "gemini-embedding-001",
   embeddingDimensions: int("GEMINI_EMBEDDING_DIMENSIONS", 768),
-  maxRequestsPerMinute: int("GEMINI_MAX_REQUESTS_PER_MINUTE", 8),
+  maxRequestsPerMinute: int("GEMINI_MAX_REQUESTS_PER_MINUTE", 5),
   requestTimeoutMs: int("GEMINI_REQUEST_TIMEOUT_MS", 30000),
 };
 
