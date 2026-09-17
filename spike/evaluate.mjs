@@ -46,7 +46,24 @@ async function main() {
       );
       results.push({ ...q, result, mechanicalBehavior, mechanicalPass, forbiddenFound });
     } catch (err) {
-      console.log(`ERROR - ${err.message.slice(0, 150)}`);
+      if (err.exhausted) {
+        // A daily/per-minute quota being used up means every remaining
+        // question will fail the same way - found by hitting this for
+        // real: continuing would have meant 12 more identical failures
+        // after the first, each printing a wall of text, with nothing
+        // learned from any of them past the first. lib/gemini.mjs no
+        // longer retries an exhausted error (it used to, pointlessly, for
+        // 30 seconds per question), so this now fails fast rather than
+        // slow - but fast and repeated 12 times is still worse than
+        // stopping and saying so once.
+        console.log(`OUT OF QUOTA - stopping here: ${err.message}`);
+        const remaining = questions.slice(i + 1);
+        for (const skipped of remaining) {
+          results.push({ ...skipped, error: "not attempted - quota exhausted earlier in this run", mechanicalPass: false });
+        }
+        break;
+      }
+      console.log(`ERROR - ${err.message}`);
       results.push({ ...q, error: err.message, mechanicalPass: false });
     }
   }
