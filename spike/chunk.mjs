@@ -90,17 +90,17 @@ function chunkDocument(text, targetTokens, overlapRatio) {
 
     if (currentTokens + paraTokens > targetTokens && current.length > 0) {
       flush();
-      // Overlap: carry the tail of the previous chunk forward by
-      // overlapRatio of the target size, measured in paragraphs from the end.
-      const overlapTokenBudget = Math.round(targetTokens * overlapRatio);
-      const tail = [];
-      let tailTokens = 0;
-      for (let i = current.length - 1; i >= 0 && tailTokens < overlapTokenBudget; i--) {
-        tail.unshift(current[i]);
-        tailTokens += approxTokens(current[i]);
-      }
-      current = tail;
-      currentTokens = tailTokens;
+      // Overlap: carry the last overlapRatio of the target forward, cut at
+      // word level. This used to walk back whole paragraphs until the budget
+      // was met, which always kept at least one paragraph however large - a
+      // 330-word paragraph was carried forward against a 45-word budget, and
+      // in 57 of 214 adjacent chunk pairs the carried text was more than
+      // twice the budget. Those near-duplicates then took several of the six
+      // retrieval slots at once.
+      const overlapWords = Math.round(targetTokens * overlapRatio * WORDS_PER_TOKEN);
+      const tailText = current.join("\n\n").split(/\s+/).filter(Boolean).slice(-overlapWords).join(" ");
+      current = tailText ? [tailText] : [];
+      currentTokens = approxTokens(tailText);
     }
 
     current.push(para);
