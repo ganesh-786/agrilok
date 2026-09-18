@@ -28,10 +28,17 @@ function sleep(ms) {
 }
 
 async function fetchOne(doc) {
+  // A handful of documents have moved or been renamed since they were
+  // verified, and their `url` (the original government-published location -
+  // kept as the authoritative citation, dead or not) now 404s.
+  // `archived_via` is a Wayback Machine snapshot confirmed, before it was
+  // added to sources.yaml, to be a genuine copy of that same document -
+  // fetch from there instead when present.
+  const fetchUrl = doc.archived_via || doc.url;
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {
-    const res = await fetch(doc.url, {
+    const res = await fetch(fetchUrl, {
       headers: { "User-Agent": USER_AGENT },
       signal: controller.signal,
     });
@@ -75,8 +82,9 @@ async function main() {
 
     const result = await fetchOne(doc);
     if (!result.ok) {
-      console.log(`FAILED - ${result.reason}`);
-      results.push({ id: doc.id, status: "failed", reason: result.reason, url: doc.url });
+      const fetchedFrom = doc.archived_via || doc.url;
+      console.log(`FAILED - ${result.reason} (fetched from ${fetchedFrom})`);
+      results.push({ id: doc.id, status: "failed", reason: result.reason, url: doc.url, fetchedFrom });
       await sleep(DELAY_BETWEEN_REQUESTS_MS);
       continue;
     }

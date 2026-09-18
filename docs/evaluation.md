@@ -116,6 +116,61 @@ distinct check in the real evaluation, since "does every claim trace to the
 source" does not catch "does the answer imply an organisation the source
 doesn't have."
 
+A second pass ran the same 13 smoke-test questions again after the corpus
+grew from 18 to 40 documents (adding federal `psc.gov.np` content for the
+first time, across levels 4, 5, 7, 8 and 9). Zero fabrication held at the
+larger, more heterogeneous scale. Two things were confirmed, not just
+suspected:
+
+**The regex-matched refusal signal undercounted a real refusal a third
+time.** One answer explicitly said the sources did not contain enough
+information to explain the topic asked about - a correct, honest refusal in
+substance - but used a third distinct phrasing that neither existing pattern
+matched, so it was mechanically counted as "answered". Each of the three
+times this has now happened, the model found an honest way to say
+"insufficient" that no fixed pattern anticipated in advance. Fixed at the
+root rather than patched a fourth time: `lib/prompt.mjs` now requires a
+structured JSON response (`{sufficient: boolean, answer: string}` via
+Gemini's `responseSchema`) instead of prose the pipeline then has to
+regex-match for a yes/no signal. `sufficient` is a field the model commits
+to directly; it is not something a new phrasing can slip past.
+
+**A new failure mode, worse than a plain refusal miss: restating a bare
+heading as if it were an explanation.** Asked to explain two different
+topics (seed technology; ICT's role in agricultural extension) where the
+source only lists the topic as a syllabus heading with no elaboration, the
+model did not fabricate new facts - but it also did not say the explanation
+was missing. It repackaged the heading itself in different words and
+presented that restatement as the answer. Nothing in it fails a citation
+check, and a student could easily come away believing they had learned
+something they had not. This is a real product-trust risk, not a formatting
+quirk. Fixed by adding an explicit rule to the system instruction: a bare
+topic heading naming a subject is not sufficient to explain, define or
+describe it, even though the model can see and repeat the heading's name;
+if the question asks for an explanation and the source only has the
+heading, `sufficient` must be `false` for that part. Verified with a
+standalone test against the exact failing question before re-running the
+full smoke set, and the full set was then re-run clean: all 13 questions
+matched expected behaviour, and every "answer" row was re-read by hand
+against its cited chunks and judged faithful.
+
+A citation-extraction bug was also found and fixed during this pass, not a
+model behaviour issue: `extractCitations()` in `lib/pipeline.mjs` matched
+only a single id per bracket (`[LUM-01-016]`), so any answer citing several
+sources in one bracket (`[LUM-01-016, BAG-01-012]` - the model's normal
+style) had all of those citations silently dropped from the report. One
+answer with a dozen visible citations was reported as "Cited: (none)". This
+made the "retrieved but never cited" signal, which exists specifically to
+flag chunks worth a reviewer's attention, actively misleading. Fixed by
+matching the whole bracket and splitting on comma.
+
+None of this is gate evidence on its own - still smoke tests, not the 20
+real past-paper questions the gate requires - but it is a second, larger,
+independent confirmation of zero fabrication, and it converted two
+suspected weaknesses into two fixed, verified ones plus one newly-found
+one, rather than leaving them as open questions for the real evaluation to
+rediscover from scratch.
+
 ## Operational metrics
 
 Separate from answer quality, and measured from the first deployment:
