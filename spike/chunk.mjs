@@ -149,7 +149,15 @@ async function main() {
         // Provenance + classification, carried straight from sources.yaml -
         // every field docs/rag-pipeline.md requires a chunk to carry.
         sourceId: doc.id,
-        sourceUrl: doc.url,
+        // sourceUrl is what the model is told and what a student sees as the
+        // citation link (lib/prompt.mjs, ask.mjs, evaluate.mjs) - it has to
+        // actually resolve. For a document recovered via Wayback because its
+        // original government URL now 404s, that's the archive snapshot, not
+        // the dead original. originalSourceUrl keeps the true provenance
+        // record (the URL the government body actually published to)
+        // regardless of whether it currently resolves.
+        sourceUrl: doc.archived_via || doc.url,
+        originalSourceUrl: doc.url,
         sourceTitle: doc.title,
         fetchedOn: doc.verified_on,
         examLevel: doc.level,

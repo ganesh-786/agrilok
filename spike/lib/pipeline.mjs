@@ -35,6 +35,7 @@ export async function answerQuestion(question, filters = {}) {
   const generation = await generate({
     systemInstruction: prompt.systemInstruction,
     contents: prompt.contents,
+    responseSchema: prompt.responseSchema,
   });
 
   if (generation.blocked) {
@@ -50,12 +51,34 @@ export async function answerQuestion(question, filters = {}) {
     };
   }
 
-  // The model is instructed to refuse in-text when sources are insufficient
-  // (see lib/prompt.mjs rule 1). Detect that so evaluate.mjs can report it
-  // as a refusal rather than scoring it as a normal answer.
-  const modelRefused = /does not contain enough information to answer/i.test(generation.text || "");
+  // The model returns a JSON object (see lib/prompt.mjs's responseSchema)
+  // instead of prose we then had to regex for a refusal phrase. That prose
+  // approach was patched three times on real runs (see docs/evaluation.md)
+  // and failed a new way each time - the model kept finding fresh, honest
+  // phrasings of "insufficient" that no fixed pattern anticipated. A schema
+  // field the model must set to true or false directly is not something it
+  // can phrase around.
+  let parsed;
+  try {
+    parsed = JSON.parse(generation.text || "");
+  } catch (err) {
+    // Structured output failing to parse is itself a real failure worth
+    // surfacing distinctly, not silently treated as a refusal or an answer.
+    return {
+      question,
+      filters,
+      refused: true,
+      refusalStage: "malformed_structured_output",
+      refusalReason: `Model response was not valid JSON: ${err.message}`,
+      retrievedChunks: results.map(toChunkSummary),
+      answer: generation.text,
+      citedSourceIds: [],
+    };
+  }
 
-  const citedSourceIds = extractCitations(generation.text || "", results);
+  const modelRefused = parsed.sufficient === false;
+  const answerText = typeof parsed.answer === "string" ? parsed.answer : "";
+  const citedSourceIds = extractCitations(answerText, results);
 
   return {
     question,
@@ -64,9 +87,9 @@ export async function answerQuestion(question, filters = {}) {
     refusalStage: modelRefused ? "generation_self_refused" : null,
     refusalReason: modelRefused ? "Model determined retrieved sources were insufficient." : null,
     retrievedChunks: results.map(toChunkSummary),
-    answer: generation.text,
+    answer: answerText,
     citedSourceIds,
-    // Chunks that were retrieved but never actually cited in the answer -
+    // Chunks that were retrieved but never actually cited in the answer;
     // worth a human's attention during faithfulness review; may mean
     // retrieval over-fetched, or the model under-cited.
     uncitedRetrievedIds: results
@@ -91,10 +114,21 @@ function toChunkSummary({ chunk, score }) {
 function extractCitations(answerText, retrievedResults) {
   const knownIds = new Set(retrievedResults.map((r) => r.chunk.chunkId));
   const found = new Set();
-  const re = /\[([A-Za-z0-9._-]+)\]/g;
+  // The model routinely cites several sources in one bracket, e.g.
+  // "[LUM-01-016, BAG-01-012]" - a real evaluation run against a 40-document
+  // corpus showed the old single-id pattern (`[A-Za-z0-9._-]+` with no comma
+  // or space allowed) silently matched nothing for any multi-id bracket,
+  // so answers with a dozen visible citations were reported as "Cited:
+  // (none)". Matching the whole bracket and splitting on comma fixes this
+  // without introducing false positives: a split token only counts if it
+  // exactly equals a known chunk id after trimming.
+  const re = /\[([^[\]]+)\]/g;
   let m;
   while ((m = re.exec(answerText)) !== null) {
-    if (knownIds.has(m[1])) found.add(m[1]);
+    for (const token of m[1].split(",")) {
+      const id = token.trim();
+      if (knownIds.has(id)) found.add(id);
+    }
   }
   return [...found];
 }

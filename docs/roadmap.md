@@ -34,6 +34,21 @@ evidence.
 
 - [ ] Phase 0 spike completed, faithfulness manually checked against **at least
       20** real past-paper questions.
+      **Not yet.** A throwaway spike (deleted once this gate resolves; see
+      [ADR-0003](adr/0003-retrieval-grounded-answers-only.md) and
+      [docs/evaluation.md](evaluation.md#phase-0)) ran the same 13
+      hand-written smoke test questions twice, not real past-paper ones -
+      first against an 18-document corpus, then again against a 40-document
+      corpus (18 provincial plus, for the first time, federal `psc.gov.np`
+      content across levels 4, 5, 7, 8 and 9) - each time read by hand
+      against the actual cited text. Zero fabrications held across both
+      runs and the larger, more heterogeneous scale - a genuinely
+      encouraging signal, not gate evidence. Findings recorded in
+      [docs/evaluation.md](evaluation.md#phase-0) either way, including one
+      real failure mode found and fixed (restating a bare syllabus heading
+      as if it were an explanation) and a citation-extraction bug found and
+      fixed in the harness itself. Still needed: the same review against
+      real past-paper questions.
 - [ ] Current, **in-force** syllabus PDFs confirmed for both levels - verified
       against the freshest official notice, not a third-party blog or summary.
       Syllabi get revised; anything cited during research needs a fresh check.
