@@ -119,3 +119,315 @@ questions:
       indistinguishable from the injection being blocked. This is still NOT a
       full test of ADR-0005, which concerns injection arriving through
       retrieved document text; no chunk here contains any.
+
+  # --- Real past-paper questions ------------------------------------------
+  # Source: a scanned objective (MCQ) exam paper, Koshi Province Public
+  # Service Commission, Local Agriculture Service, Agriculture Extension /
+  # Crop Protection group, Assistant Level 4, Deputy Technical Assistant
+  # post, dated 2082/01/27 BS. Redistributed by a coaching service (OTTISH)
+  # with printed answer highlighting, not a candidate's own handwritten
+  # marks. Corroborated, not just trusted: a real, live Koshi PSC notice
+  # (psc.koshi.gov.np/content/1297/mnmn/) confirms a written-exam-result
+  # notice exists for the exact same vacancy (4018-4022/081-82), service,
+  # group and level named on this paper's own letterhead. That confirms a
+  # real exam for this exact post happened; it does not independently
+  # verify every question word for word the way a government-hosted PDF
+  # checksum does, and is documented here as exactly that level of
+  # confidence, not overstated as gate-equivalent to the syllabus sources.
+  #
+  # Each question was run against the live pipeline before expected_behavior
+  # was written, exactly like the smoke tests. Two of the twenty produced an
+  # answer worth flagging on its own:
+  #
+  # PP-01: the pipeline answered "Secondary data", confidently cited to real
+  # chunks - but those chunks only list "6.9 Primary/Secondary data" and
+  # "6.10 Crop Cutting" as two separate, adjacent, unexplained syllabus
+  # headings. Neither states which category crop-cutting data falls under.
+  # The real exam's own marked answer is Primary data. This is a confirmed
+  # fabrication on real exam content: the model combined two adjacent
+  # headings into a classification the source never makes, cited real chunk
+  # ids as if they supported it, and got it wrong. expected_behavior is set
+  # to refuse (what the source actually supports), not answer (what the
+  # pipeline currently does), so this stays a live regression check.
+  #
+  # PP-17: the pipeline answered "Agricultural Lime", which happens to match
+  # the real exam's marked answer - but the cited chunk lists "7.4.5
+  # Agricultural Lime, Gypsum" as one combined heading, without stating that
+  # lime treats acidic soil specifically. The answer being correct does not
+  # confirm it was derived from the retrieved text rather than the model's
+  # own general knowledge, which ADR-0003 exists to rule out regardless of
+  # whether the guess lands right. expected_behavior is set to refuse for
+  # the same reason as PP-01: the source does not clearly support this
+  # specific claim.
+  #
+  # Only PP-16 held up as genuinely faithful: the cited chunk explicitly
+  # lists organic fertilisers (7.4.1) and chemical fertilisers (7.4.2) as
+  # two differentiated, named categories that directly match the exam
+  # question's four options, so expected_behavior is answer.
+  #
+  # This batch is Level 4, Koshi Province only. The gate's "Level 4 and
+  # Level 7" language is not satisfied by this batch alone - no verified
+  # real Level 7 past paper has been found yet.
+  - id: PP-01
+    type: real_past_paper
+    question: "बालीको क्रप कटिङ गरी उत्पादनको विवरण स्थानीय तहले प्रदेशलाई पठाउने गर्दछ, यस्तो तथ्याङ्क प्रदेशका लागि के हो?"
+    reference_answer: "A. प्राथमिक तथ्याङ्क (Primary data)"
+    expected_behavior: refuse
+    filters: { level: 4 }
+    source: "Koshi PSC, Local Agriculture Service, Agri Extension/Crop Protection, Level 4, 2082/01/27 BS, Q1. Corroborated against psc.koshi.gov.np/content/1297/mnmn/."
+    exam_level: 4
+    province: koshi
+    service_group: agri_extension
+    added_by: "ganesh-786"
+    verified_on: "2026-09-18"
+    note: "CONFIRMED FABRICATION - see file header. The pipeline currently answers 'Secondary data' (wrong; real answer is Primary data), citing two adjacent syllabus headings that never actually state this classification. This is the strongest evidence found so far that ADR-0003 can be violated in practice, not just in theory."
+
+  - id: PP-02
+    type: real_past_paper
+    question: "कृषि बाली बिमा कुन किसिमको बिमा हो?"
+    reference_answer: "C. निर्जीवन बिमा (Non-life insurance)"
+    expected_behavior: refuse
+    filters: { level: 4 }
+    source: "Koshi PSC, Local Agriculture Service, Agri Extension/Crop Protection, Level 4, 2082/01/27 BS, Q2."
+    exam_level: 4
+    province: koshi
+    service_group: agri_extension
+    added_by: "ganesh-786"
+    verified_on: "2026-09-18"
+
+  - id: PP-03
+    type: real_past_paper
+    question: "कोशी प्रदेशको कुल गार्हस्थ्य उत्पादनमा कृषि, वन र मत्स्य क्षेत्रको योगदान चालू आवधिक योजनाको अन्त्य आ.व. २०८५/८६ सम्ममा कति पुर्याउने लक्ष्य राखिएको छ?"
+    reference_answer: "B. ६.०%"
+    expected_behavior: refuse
+    filters: { level: 4 }
+    source: "Koshi PSC, Local Agriculture Service, Agri Extension/Crop Protection, Level 4, 2082/01/27 BS, Q3."
+    exam_level: 4
+    province: koshi
+    service_group: agri_extension
+    added_by: "ganesh-786"
+    verified_on: "2026-09-18"
+
+  - id: PP-04
+    type: real_past_paper
+    question: "बढी मूल्यको मसला बाली (High value spice crops) कुन प्रदेशमा बढी उत्पादन हुन्छ?"
+    reference_answer: "C. कोशी प्रदेश (Koshi Province)"
+    expected_behavior: refuse
+    filters: { level: 4 }
+    source: "Koshi PSC, Local Agriculture Service, Agri Extension/Crop Protection, Level 4, 2082/01/27 BS, Q5."
+    exam_level: 4
+    province: koshi
+    service_group: agri_extension
+    added_by: "ganesh-786"
+    verified_on: "2026-09-18"
+
+  - id: PP-05
+    type: real_past_paper
+    question: "अगुवा कृषकको परिचालन कार्यविधि, २०८१ अनुसार अगुवा कृषकको न्यूनतम योग्यतासँग मिल्ने न्यूनतम योग्यता कुन हो?"
+    reference_answer: "A. कम्तीमा २ रोपनी जमिनमा फलफूल खेती गरिरहेको"
+    expected_behavior: refuse
+    filters: { level: 4 }
+    source: "Koshi PSC, Local Agriculture Service, Agri Extension/Crop Protection, Level 4, 2082/01/27 BS, Q6."
+    exam_level: 4
+    province: koshi
+    service_group: agri_extension
+    added_by: "ganesh-786"
+    verified_on: "2026-09-18"
+
+  - id: PP-06
+    type: real_past_paper
+    question: "तलका फलफूलहरू मध्ये कुन फल कोशी प्रदेशमा कम उपयुक्त मानिएको छ?"
+    reference_answer: "D. स्याउ (Apple)"
+    expected_behavior: refuse
+    filters: { level: 4 }
+    source: "Koshi PSC, Local Agriculture Service, Agri Extension/Crop Protection, Level 4, 2082/01/27 BS, Q7."
+    exam_level: 4
+    province: koshi
+    service_group: horticulture
+    added_by: "ganesh-786"
+    verified_on: "2026-09-18"
+
+  - id: PP-07
+    type: real_past_paper
+    question: "काठमाडौं लोकल कुन लोकप्रिय तरकारी बालीको जात हो?"
+    reference_answer: "A. काउली (Cauliflower)"
+    expected_behavior: refuse
+    filters: { level: 4 }
+    source: "Koshi PSC, Local Agriculture Service, Agri Extension/Crop Protection, Level 4, 2082/01/27 BS, Q8."
+    exam_level: 4
+    province: koshi
+    service_group: horticulture
+    added_by: "ganesh-786"
+    verified_on: "2026-09-18"
+
+  - id: PP-08
+    type: real_past_paper
+    question: "बागवानी शब्द कुन भाषाबाट आएको हो?"
+    reference_answer: "A. Latin"
+    expected_behavior: refuse
+    filters: { level: 4 }
+    source: "Koshi PSC, Local Agriculture Service, Agri Extension/Crop Protection, Level 4, 2082/01/27 BS, Q9."
+    exam_level: 4
+    province: koshi
+    service_group: horticulture
+    added_by: "ganesh-786"
+    verified_on: "2026-09-18"
+
+  - id: PP-09
+    type: real_past_paper
+    question: "लहरे तरकारी बालीमा 3G cutting किन गरिन्छ?"
+    reference_answer: "C. पोथी फूल धेरै बनाउन (to produce more female flowers)"
+    expected_behavior: refuse
+    filters: { level: 4 }
+    source: "Koshi PSC, Local Agriculture Service, Agri Extension/Crop Protection, Level 4, 2082/01/27 BS, Q10."
+    exam_level: 4
+    province: koshi
+    service_group: horticulture
+    added_by: "ganesh-786"
+    verified_on: "2026-09-18"
+
+  - id: PP-10
+    type: real_past_paper
+    question: "खुम्ल-२ के को जात हो?"
+    reference_answer: "D. गोलभेडा (Tomato)"
+    expected_behavior: refuse
+    filters: { level: 4 }
+    source: "Koshi PSC, Local Agriculture Service, Agri Extension/Crop Protection, Level 4, 2082/01/27 BS, Q12."
+    exam_level: 4
+    province: koshi
+    service_group: horticulture
+    added_by: "ganesh-786"
+    verified_on: "2026-09-18"
+
+  - id: PP-11
+    type: real_past_paper
+    question: "खाद्य पदार्थ स्वच्छता सम्बन्धी अन्तराष्ट्रिय संस्था कुन हो?"
+    reference_answer: "B. Codex"
+    expected_behavior: refuse
+    filters: { level: 4 }
+    source: "Koshi PSC, Local Agriculture Service, Agri Extension/Crop Protection, Level 4, 2082/01/27 BS, Q16."
+    exam_level: 4
+    province: koshi
+    service_group: agri_extension
+    added_by: "ganesh-786"
+    verified_on: "2026-09-18"
+
+  - id: PP-12
+    type: real_past_paper
+    question: "कृषक तालीमबाट कृषकको के हुने अपेक्षा गरिएको हुन्छ?"
+    reference_answer: "D. माथिका सबै (All of the above)"
+    expected_behavior: refuse
+    filters: { level: 4 }
+    source: "Koshi PSC, Local Agriculture Service, Agri Extension/Crop Protection, Level 4, 2082/01/27 BS, Q19."
+    exam_level: 4
+    province: koshi
+    service_group: agri_extension
+    added_by: "ganesh-786"
+    verified_on: "2026-09-18"
+
+  - id: PP-13
+    type: real_past_paper
+    question: "मकैको मूल बीउ उत्पादनको लागि फिल्डमा न्यूनतम पृथकता दुरी कति कायम गर्नुपर्दछ?"
+    reference_answer: "B. ३०० मिटर (300 metres)"
+    expected_behavior: refuse
+    filters: { level: 4 }
+    source: "Koshi PSC, Local Agriculture Service, Agri Extension/Crop Protection, Level 4, 2082/01/27 BS, Q22."
+    exam_level: 4
+    province: koshi
+    service_group: agronomy
+    added_by: "ganesh-786"
+    verified_on: "2026-09-18"
+
+  - id: PP-14
+    type: real_past_paper
+    question: "धान बालीमा सेतो बाला (White head) कुन किराको प्रकोपबाट हुन्छ?"
+    reference_answer: "A. धानको गवारो"
+    expected_behavior: refuse
+    filters: { level: 4 }
+    source: "Koshi PSC, Local Agriculture Service, Agri Extension/Crop Protection, Level 4, 2082/01/27 BS, Q29."
+    exam_level: 4
+    province: koshi
+    service_group: plant_protection
+    added_by: "ganesh-786"
+    verified_on: "2026-09-18"
+
+  - id: PP-15
+    type: real_past_paper
+    question: "एकीकृत शत्रुजीव व्यवस्थापन (IPM) भन्नाले के बुझिन्छ?"
+    reference_answer: "D. नगरी नहुने अवस्थामा मात्र विषादी प्रयोग गर्ने (use pesticide only when unavoidable)"
+    expected_behavior: refuse
+    filters: { level: 4 }
+    source: "Koshi PSC, Local Agriculture Service, Agri Extension/Crop Protection, Level 4, 2082/01/27 BS, Q30."
+    exam_level: 4
+    province: koshi
+    service_group: plant_protection
+    added_by: "ganesh-786"
+    verified_on: "2026-09-18"
+
+  - id: PP-16
+    type: real_past_paper
+    question: "तल दिइएका मलहरू मध्ये कुन प्राङ्गारिक मल होइन?"
+    reference_answer: "D. युरिया (Urea)"
+    expected_behavior: answer
+    filters: { level: 4 }
+    source: "Koshi PSC, Local Agriculture Service, Agri Extension/Crop Protection, Level 4, 2082/01/27 BS, Q38."
+    exam_level: 4
+    province: koshi
+    service_group: soil_science
+    added_by: "ganesh-786"
+    verified_on: "2026-09-18"
+    note: "FAITHFUL. GAN-01-008 explicitly lists organic fertilisers (7.4.1, naming compost, farmyard manure, vermicompost, green manure) and chemical fertilisers (7.4.2, naming nitrogen/phosphorus/potash-based) as two differentiated categories that directly match all four options in this question."
+
+  - id: PP-17
+    type: real_past_paper
+    question: "अम्लीय माटो सुधार गर्न के प्रयोग गर्नुपर्दछ?"
+    reference_answer: "B. कृषि चुन (Agricultural Lime)"
+    expected_behavior: refuse
+    filters: { level: 4 }
+    source: "Koshi PSC, Local Agriculture Service, Agri Extension/Crop Protection, Level 4, 2082/01/27 BS, Q40."
+    exam_level: 4
+    province: koshi
+    service_group: soil_science
+    added_by: "ganesh-786"
+    verified_on: "2026-09-18"
+    note: "Pipeline currently answers this correctly, but see file header - the cited chunk lists lime and gypsum as one combined heading without stating lime specifically treats acidic soil, so the correct-sounding answer is not clearly grounded in the retrieved text alone. expected_behavior is refuse for the same reason as PP-01, not because the current answer is wrong."
+
+  - id: PP-18
+    type: real_past_paper
+    question: "नेपालको संविधान बमोजिम अवशिष्ट अधिकार कसमा निहित हुन्छ?"
+    reference_answer: "C. संघ (the federal government)"
+    expected_behavior: refuse
+    filters: { level: 4 }
+    source: "Koshi PSC, Local Agriculture Service, Agri Extension/Crop Protection, Level 4, 2082/01/27 BS, Q41."
+    exam_level: 4
+    province: koshi
+    service_group: agri_extension
+    added_by: "ganesh-786"
+    verified_on: "2026-09-18"
+    note: "General civil-service knowledge, not agriculture-specific - part of the real Paper I content but outside anything an agriculture syllabus corpus could ever support."
+
+  - id: PP-19
+    type: real_past_paper
+    question: "कोशी प्रदेशले स्थानीय सरकारी सेवालाई समावेशी बनाउन छुट्याएको समावेशी सिट मध्ये आदिवासी/जनजातिका लागि कति प्रतिशत छुट्याएको छ?"
+    reference_answer: "A. ३५%"
+    expected_behavior: refuse
+    filters: { level: 4 }
+    source: "Koshi PSC, Local Agriculture Service, Agri Extension/Crop Protection, Level 4, 2082/01/27 BS, Q46."
+    exam_level: 4
+    province: koshi
+    service_group: agri_extension
+    added_by: "ganesh-786"
+    verified_on: "2026-09-18"
+
+  - id: PP-20
+    type: real_past_paper
+    question: "प्रदेश लोक सेवा आयोगले आफूले गरेको काम कारबाहीको वार्षिक प्रतिवेदन कसलाई पेश गर्नुपर्दछ?"
+    reference_answer: "C. प्रदेश प्रमुख (the Province Chief)"
+    expected_behavior: refuse
+    filters: { level: 4 }
+    source: "Koshi PSC, Local Agriculture Service, Agri Extension/Crop Protection, Level 4, 2082/01/27 BS, Q48."
+    exam_level: 4
+    province: koshi
+    service_group: agri_extension
+    added_by: "ganesh-786"
+    verified_on: "2026-09-18"

@@ -34,26 +34,47 @@ evidence.
 
 - [ ] Phase 0 spike completed, faithfulness manually checked against **at least
       20** real past-paper questions.
-      **Not yet.** A throwaway spike (deleted once this gate resolves; see
+      **Numeric target met; gate not clear.** A throwaway spike (deleted
+      once this gate resolves; see
       [ADR-0003](adr/0003-retrieval-grounded-answers-only.md) and
-      [docs/evaluation.md](evaluation.md#phase-0)) ran the same 13
-      hand-written smoke test questions twice, not real past-paper ones -
-      first against an 18-document corpus, then again against a 40-document
-      corpus (18 provincial plus, for the first time, federal `psc.gov.np`
-      content across levels 4, 5, 7, 8 and 9) - each time read by hand
-      against the actual cited text. Zero fabrications held across both
-      runs and the larger, more heterogeneous scale - a genuinely
-      encouraging signal, not gate evidence. Findings recorded in
-      [docs/evaluation.md](evaluation.md#phase-0) either way, including one
-      real failure mode found and fixed (restating a bare syllabus heading
-      as if it were an explanation) and a citation-extraction bug found and
-      fixed in the harness itself. Still needed: the same review against
-      real past-paper questions.
+      [docs/evaluation.md](evaluation.md#phase-0)) first ran 13 hand-written
+      smoke tests twice (18, then 40 documents), zero fabrications, and fixed
+      one real failure mode plus a citation-extraction bug in the harness.
+      It then ran 20 real past-paper questions (Koshi Province, Level 4,
+      Agriculture Extension, corroborated against a live PSC exam-result
+      notice - see [docs/evaluation.md](evaluation.md#phase-0) for exactly
+      what that corroboration does and does not establish) for the first
+      time. 18 of 20 correctly refuse, and one answer is confirmed faithful.
+      **One, `PP-01`, is a confirmed fabrication**: a wrong answer built by
+      combining two unrelated adjacent syllabus headings, cited as if they
+      supported it, checked against the real exam's own marked correct
+      answer. Investigated to a root cause, not just patched: fixing a
+      dropped ADR-0003 instruction and restructuring the prompt fixed a
+      second, related case (`PP-17`) outright, but `PP-01` itself held even
+      under the corrected prompt on `gemini-3.1-flash-lite` specifically -
+      confirmed a model-capability ceiling, not a prompt gap, by sending the
+      identical prompt and context to two other models in the same family,
+      both of which correctly refused. Per [CLAUDE.md](../CLAUDE.md),
+      faithfulness never regresses - a drop is a blocking bug, not a
+      trade-off, and hitting the count of questions the gate names does not
+      override a confirmed failure sitting inside that count. Still needed: a
+      real Level 7 past paper (this batch is Level 4 only) and a named
+      decision on generation model tier (see
+      [docs/evaluation.md](evaluation.md#phase-0)) before this box is
+      checked.
 - [ ] Current, **in-force** syllabus PDFs confirmed for both levels - verified
       against the freshest official notice, not a third-party blog or summary.
       Syllabi get revised; anything cited during research needs a fresh check.
 - [ ] Free-tier capacity math redone with **real pilot numbers** once a waitlist
       exists. A back-of-envelope estimate is not a plan.
+      **Partial, real data, not yet a plan.** The live AI Studio quota
+      dashboard for this account (2026-09-18) shows every full-tier Flash
+      model capped at 20 requests per day and both Lite-tier models checked
+      at 500 requests per day - a real, structural constraint, not an
+      estimate. That is a data point this math needs, not the math itself:
+      still no waitlist, no pilot, and no per-feature call budget built from
+      it. See [docs/evaluation.md](evaluation.md#phase-0) and
+      [docs/free-tier-budget.md](free-tier-budget.md).
 - [ ] Content review workflow **decided before the crawler goes live**.
       Publishing unreviewed scraped content straight to students defeats the
       entire trust premise of the project.

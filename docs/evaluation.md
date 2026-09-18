@@ -171,6 +171,136 @@ suspected weaknesses into two fixed, verified ones plus one newly-found
 one, rather than leaving them as open questions for the real evaluation to
 rediscover from scratch.
 
+### The first 20 real past-paper questions
+
+The golden set now has 20 `real_past_paper` entries (`golden_set/questions.yaml`,
+`PP-01` through `PP-20`), the number the go/no-go gate asks for. Read what
+that number does and does not mean before treating it as the gate cleared.
+
+**Source and how it was corroborated.** A scanned objective (MCQ) exam paper,
+Koshi Province Public Service Commission, Local Agriculture Service,
+Agriculture Extension / Crop Protection group, Assistant Level 4, dated
+2082/01/27 BS, redistributed by a coaching service with printed answer
+highlighting. A live Koshi PSC notice
+(`psc.koshi.gov.np/content/1297/mnmn/`) confirms a written-exam-result
+notice exists for the exact same vacancy, service, group and level named on
+the paper's own letterhead - confirming a real exam for this exact post
+happened. That is meaningfully stronger evidence than an unverified
+coaching-site question set, and it is also a different, weaker kind of
+verification than the syllabi have: a live government URL with a byte-exact
+match. Documented at exactly that confidence level, not stretched to look
+equivalent.
+
+**This batch is Level 4, Koshi Province only.** The gate's "Level 4 and
+Level 7" language is not satisfied by this batch alone - no verified real
+Level 7 past paper has been found yet.
+
+**What running them found - three faithfulness outcomes, not one.** Each
+question was run against the live pipeline before its expected behaviour was
+written, the same discipline as the smoke tests. 18 of 20 correctly refuse:
+the syllabus corpus genuinely does not contain the specific facts these MCQs
+test (scientific names, exact percentages, named regulations), so refusal is
+the correct, faithful result, not a shortfall. Two produced an answer worth
+naming individually, because the aggregate pass count would otherwise hide
+the one that matters most:
+
+- **`PP-01` is a confirmed fabrication, not a hypothetical one.** Asked what
+  kind of data province-bound crop-cutting figures are, the pipeline
+  answered "secondary data", citing real chunks - which only list "6.9
+  Primary/Secondary data" and "6.10 Crop Cutting" as two separate, adjacent,
+  unexplained syllabus headings. Neither states which category crop-cutting
+  data falls under. The real exam's own marked answer is primary data. The
+  model combined two adjacent headings into a classification the source
+  never makes, cited real chunk ids as if they supported it, and got it
+  wrong. This is the clearest evidence yet found that ADR-0003 can be
+  violated in practice, not just in theory, and it was found precisely
+  because a real question came with a real, independently known correct
+  answer to check against - something the smoke tests, self-written and
+  without an external answer key, structurally could not do.
+- **`PP-17` answers correctly but the provenance is not clean.** Asked what
+  corrects acidic soil, the pipeline said agricultural lime, matching the
+  real exam's answer - but the cited chunk lists lime and gypsum as one
+  combined heading without stating that lime specifically treats acidic
+  soil. A right answer that cannot be shown to come from the retrieved text
+  is not evidence the system is working; it is a coin flip that landed
+  right this time. Recorded as `refuse` in expected behaviour for the same
+  reason as `PP-01`, not because the surface answer was wrong.
+- **`PP-16` held up as genuinely faithful**: the cited chunk explicitly lists
+  organic and chemical fertilisers as two differentiated, named categories
+  that directly match all four options in the question.
+
+**What this means for the gate.** The numeric target (20 real past-paper
+questions, faithfulness checked by hand) is met. Per
+[CLAUDE.md](../CLAUDE.md)'s own rule, "faithfulness never regresses - a drop
+is a blocking bug, not a trade-off", and `PP-01` is exactly that: a
+confirmed, reproducible faithfulness failure on real exam content, now
+recorded as a live regression case rather than a one-off anecdote. Hitting
+the number of questions the gate names is not the same as the gate being
+clear - a confirmed fabrication sitting in the golden set is a blocking
+finding regardless of what the pass count reads.
+
+### Chasing `PP-01`: a prompt fix, a dropped instruction, and a model ceiling
+
+Investigating `PP-01` further, in that order, found three distinct things,
+not one:
+
+**A real, missing instruction.** The structured-output migration (above)
+rewrote the system instruction's rule 1 around the heading-versus-explanation
+distinction and, in doing so, silently dropped the original, load-bearing
+sentence: "do not use anything you know about agriculture, Nepal, or these
+exams from your own training." That is ADR-0003's actual instruction, not a
+nice-to-have, and it went missing for one full round of testing without
+anyone noticing until this investigation. Restored, and rule 1 now states an
+explicit, general test ("could you point to one specific place in the source
+that states this?") rather than accumulating one-off examples, after an
+earlier attempt at a second illustrative example was found to *weaken* the
+first one - adding a second concrete case measurably regressed the first,
+confirmed by three identical repeated runs, not variance. A single general
+test with short illustrative bullets underneath it fixed both `PP-01` and
+`PP-17` without that interference. `PP-17` is now confirmed fixed. `PP-16` is
+unaffected, still correctly answers.
+
+**A model capability ceiling the prompt cannot fix.** `PP-01` itself did not
+move under the corrected prompt. Investigated by retrieving and reading all
+six chunks the query actually returns: none of them state whether
+crop-cutting data is primary or secondary. The pipeline confidently answers
+"secondary data" anyway - a real fact about agricultural statistics
+methodology that the model plainly already knows, dressed in a citation to
+chunks that never say it. Sent the identical system instruction and identical
+retrieved context to two other models in the same family
+(`gemini-3-flash-preview`, `gemini-3.5-flash`): both correctly refused,
+identifying the same gap in the source that `gemini-3.1-flash-lite` talks
+past. Same prompt, same input, different result by model - this rules out
+the prompt as the remaining variable and identifies it as a `gemini-3.1-flash-lite`-specific weakness.
+
+**Why the model is not simply being swapped for a better one.** Checked
+against the real, live AI Studio quota dashboard (2026-09-18, this account):
+every full-tier Flash model (`gemini-3`, `3.5`, `3.6`, `3.7`, `3.8`) is capped
+at **20 requests per day**, while both Lite-tier models checked
+(`gemini-3.1-flash-lite`, `gemini-3.5-flash-lite`) get **500 requests per
+day** - a consistent, deliberate 25x gap across the whole model family, not
+one model's quirk. Twenty requests a day, project-wide, is very likely fatal
+to a real pilot regardless of this bug; the spike itself burned through
+`gemini-3.6-flash`'s 20 RPD in a handful of test calls earlier the same day.
+Staying on the Lite tier for continued testing is the considered choice, not
+an oversight - see [docs/free-tier-budget.md](free-tier-budget.md) for why
+volume matters this much. The residual risk this leaves is bounded by the
+rest of the architecture, not eliminated by it: `verified` content only
+reaches a student after human review (non-negotiable rule 2 in
+[CLAUDE.md](../CLAUDE.md)), and [ADR-0004](adr/0004-cache-first-serving.md)'s
+cache-first design means most traffic is pre-generated and reviewed, never
+live. This specific weakness lives in the minority, uncached, genuinely-novel
+live query path - real, and not the whole product's exposure.
+
+**What Phase 1 actually needs from this.** Not a fix inside this spike. A
+named decision, ideally its own ADR, on generation model tier: accept the
+Lite tier's residual faithfulness gap and rely on the review gate to catch
+it, add a lightweight non-model verification layer (for example, checking
+lexical overlap between an answer's claims and its cited chunk text before
+ever showing it), or accept the ~20 RPD ceiling of a full model and redesign
+the capacity plan around it. All three are real options with real costs;
+none should be drifted into by default.
+
 ## Operational metrics
 
 Separate from answer quality, and measured from the first deployment:

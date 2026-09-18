@@ -1,4 +1,4 @@
-# Phase 0 source manifest — 40 documents, individually verified by direct
+# Phase 0 source manifest — 41 documents, individually verified by direct
 # download (HTTP 200 + application/pdf) before being listed here. See the
 # research trail in this conversation for how each was found and checked.
 #
@@ -173,6 +173,17 @@ documents:
     verified_on: "2026-09-16"
     verified_bytes: 582872
     note: "Adjacent to the Phase 0 target (4/7), included because already verified."
+
+  - id: SUD-05
+    title: "Agriculture Extension/Horticulture/Agronomy/Plant Protection/Agri Econ & Marketing/Soil Science, Officer Level 7"
+    url: https://psc.sudurpashchim.gov.np/public/uploads/curriculum/1777691329_Horticulture...7th%20Level%20Curriculim.pdf
+    province: sudurpaschim
+    level: 7
+    groups: [agri_extension, horticulture, agronomy, plant_protection, agri_economics_marketing, soil_science]
+    doc_type: curriculum
+    verified_on: "2026-09-18"
+    verified_bytes: 983092
+    note: "Sudurpaschim's first Level 7 document in this corpus - the province previously had Level 4/5 only. Genuine Unicode Devanagari, extracts cleanly, no legacy-font issue. Filename says Horticulture but the content itself is the same six-group multi-service officer syllabus pattern as LUM-01 and BAG-01, confirmed by reading the extracted text, not assumed from the filename."
 
   - id: GAN-01
     title: "Agriculture, Junior Technical Assistant Level 4"
