@@ -112,8 +112,16 @@ export function buildApiError(status, rawText, label, retryAfterHeader) {
   // retry window. Falls back to matching the human-readable message in case
   // the status field is ever absent, so this does not silently stop
   // detecting exhaustion if the response shape shifts slightly.
+  //
+  // But not every RESOURCE_EXHAUSTED is a daily quota. A per-minute limit (the
+  // embedding model has a 30,000 tokens-per-minute cap, and Devanagari chunks
+  // are token-heavy) clears in under a minute. This used to treat both the
+  // same way, so an embedding run stopped after 40 chunks on a limit that
+  // would have cleared before the next request. The quota id names which one
+  // it is; only a quota that is not per-minute is treated as unrecoverable.
+  const perMinute = /PerMinute/i.test(quotaDetail ?? "");
   const exhausted =
-    googleStatus === "RESOURCE_EXHAUSTED" || /exceeded your current quota/i.test(message);
+    !perMinute && (googleStatus === "RESOURCE_EXHAUSTED" || /exceeded your current quota/i.test(message));
 
   const err = new Error(
     `${label} failed: HTTP ${status}${googleStatus ? ` (${googleStatus})` : ""} - ${message}` +
@@ -121,7 +129,15 @@ export function buildApiError(status, rawText, label, retryAfterHeader) {
   );
   err.status = status;
   err.exhausted = exhausted;
-  if (retryAfterHeader) err.retryAfterSeconds = Number.parseInt(retryAfterHeader, 10);
+  err.perMinute = perMinute;
+  if (retryAfterHeader) {
+    err.retryAfterSeconds = Number.parseInt(retryAfterHeader, 10);
+  } else {
+    // The error body says how long to wait ("Please retry in 30.5s") even
+    // when there is no Retry-After header.
+    const hinted = /retry in ([0-9.]+)s/i.exec(message);
+    if (hinted) err.retryAfterSeconds = Math.ceil(Number.parseFloat(hinted[1]));
+  }
   return err;
 }
 

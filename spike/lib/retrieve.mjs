@@ -68,7 +68,9 @@ export async function retrieve(query, filters = {}) {
 
   let candidates = chunks;
   if (filters.level !== undefined) {
-    candidates = candidates.filter((c) => c.examLevel === filters.level);
+    // Syllabus chunks must match the level exactly (Level 4 and Level 7 never
+    // mix). Reference documents carry no level and apply to all of them.
+    candidates = candidates.filter((c) => c.examLevel === filters.level || c.docClass === "reference");
   }
   if (filters.province) {
     candidates = candidates.filter((c) => c.province === filters.province);

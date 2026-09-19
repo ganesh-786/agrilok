@@ -160,8 +160,14 @@ async function main() {
         originalSourceUrl: doc.url,
         sourceTitle: doc.title,
         fetchedOn: doc.verified_on,
-        examLevel: doc.level,
-        levelConfidence: doc.level_confidence || "stated",
+        // A reference document (an Act, a national policy) is not tied to
+        // one exam level, so its level is null rather than a guess. Retrieval
+        // includes reference chunks under any level filter; syllabus chunks
+        // are still filtered strictly by level. Whether that is the right way
+        // to scope reference material is an open question, see the ADR.
+        examLevel: doc.level ?? null,
+        docClass: doc.doc_class || "syllabus",
+        levelConfidence: doc.level_confidence || (doc.level == null ? "not_applicable" : "stated"),
         province: doc.province,
         serviceGroups: doc.groups,
         docType: doc.doc_type,

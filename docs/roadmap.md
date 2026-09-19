@@ -59,12 +59,27 @@ evidence.
       trade-off, and hitting the count of questions the gate names does not
       override a confirmed failure sitting inside that count. Still needed: a
       real Level 7 past paper (this batch is Level 4 only) and a named
-      decision on generation model tier (see
-      [docs/evaluation.md](evaluation.md#phase-0)) before this box is
-      checked.
+      decision on generation model tier
+      ([ADR-0008](adr/0008-generation-model-tier.md), Proposed) before this
+      box is checked. Two compiled Officer-level MCQ sets (about 100
+      questions) were reviewed and do **not** meet the bar for a real
+      past-paper entry: one is a coaching institute's retyped set whose
+      claimed federal sitting could not be corroborated, the other has no
+      source at all and an answer key that contradicts its own note. They
+      are kept in a separate unverified tier that is never counted here.
 - [ ] Current, **in-force** syllabus PDFs confirmed for both levels - verified
       against the freshest official notice, not a third-party blog or summary.
       Syllabi get revised; anything cited during research needs a fresh check.
+      **Not confirmed, one new piece of evidence.** The most recent federal
+      Level 7 syllabus found is FED-09 (effective 2082/07/20). A 2083/05/20
+      Officer paper (unverified) matches its format (100 one-mark MCQs,
+      1h30m), and about 15 questions spot-checked against it map to FED-09's
+      technical headings, which is consistent with FED-09 being in force. It
+      is not proof: the paper's header uses the term "एकीकृत" (integrated
+      group) that FED-09 does not, and it cites NTIS 2023 where FED-09 lists
+      2016. PSC's course list is rendered by JavaScript and cannot be read by
+      search, so a person has to browse it for anything dated after
+      2082/07/20.
 - [ ] Free-tier capacity math redone with **real pilot numbers** once a waitlist
       exists. A back-of-envelope estimate is not a plan.
       **Partial, real data, not yet a plan.** The live AI Studio quota
@@ -73,13 +88,23 @@ evidence.
       at 500 requests per day - a real, structural constraint, not an
       estimate. That is a data point this math needs, not the math itself:
       still no waitlist, no pilot, and no per-feature call budget built from
-      it. See [docs/evaluation.md](evaluation.md#phase-0) and
-      [docs/free-tier-budget.md](free-tier-budget.md).
+      it. Embedding has its own limits on the same dashboard (30,000 tokens
+      per minute, 1,000 requests per day), and Devanagari chunks are
+      token-heavy, so adding a long document is throttled by tokens. See
+      [docs/evaluation.md](evaluation.md#phase-0),
+      [docs/free-tier-budget.md](free-tier-budget.md) and
+      [ADR-0008](adr/0008-generation-model-tier.md).
 - [ ] Content review workflow **decided before the crawler goes live**.
       Publishing unreviewed scraped content straight to students defeats the
       entire trust premise of the project.
 - [ ] **One person named** as owner of the trusted-source whitelist, so it
       cannot silently grow to include unreliable sites.
+      **Evidence exists; box left for the owner to tick.** @ganesh-786 is
+      named as the single whitelist owner in `data/sources/whitelist.yml` and
+      in [docs/data-governance.md](data-governance.md#roles). The first
+      vetting round (`moald.gov.np`, `lawcommission.gov.np`, `narc.gov.np`)
+      returned three "needs a human decision" verdicts, now waiting on that
+      owner; see [ADR-0007](adr/0007-primary-reference-documents-in-the-corpus.md).
 
 Check the current state with `/gate`.
 

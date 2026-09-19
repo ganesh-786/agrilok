@@ -105,6 +105,7 @@ function toChunkSummary({ chunk, score }) {
     sourceTitle: chunk.sourceTitle,
     sourceUrl: chunk.sourceUrl,
     examLevel: chunk.examLevel,
+    docClass: chunk.docClass,
     province: chunk.province,
     serviceGroups: chunk.serviceGroups,
     score: Number(score.toFixed(3)),

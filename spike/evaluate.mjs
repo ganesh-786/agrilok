@@ -18,8 +18,13 @@ async function main() {
 
   const realCount = questions.filter((q) => q.type === "real_past_paper").length;
   const smokeCount = questions.filter((q) => q.type === "pipeline_smoke_test").length;
+  // Model questions of unknown provenance. Never counted toward the gate.
+  const unverifiedCount = questions.filter((q) => q.type === "unverified_model_question").length;
 
-  console.log(`${questions.length} questions (${realCount} real past-paper, ${smokeCount} pipeline smoke test)\n`);
+  console.log(
+    `${questions.length} questions (${realCount} real past-paper, ${smokeCount} pipeline smoke test, ` +
+      `${unverifiedCount} unverified model question)\n`,
+  );
   if (realCount < 20) {
     console.log(
       `NOTE: the go/no-go gate requires >=20 real past-paper questions. This run has ${realCount}. ` +
@@ -74,7 +79,7 @@ async function main() {
   const mdPath = path.join(paths.reports, `evaluation-${timestamp}.md`);
 
   await fs.writeFile(jsonPath, JSON.stringify(results, null, 2));
-  await fs.writeFile(mdPath, renderMarkdown(results, { realCount, smokeCount }));
+  await fs.writeFile(mdPath, renderMarkdown(results, { realCount, smokeCount, unverifiedCount }));
 
   const mechanicalFails = results.filter((r) => !r.mechanicalPass);
   console.log(`\n${results.length - mechanicalFails.length}/${results.length} matched expected behavior (refuse vs answer).`);
@@ -89,7 +94,8 @@ function renderMarkdown(results, counts) {
   lines.push(`# Phase 0 evaluation run — ${new Date().toISOString()}`);
   lines.push("");
   lines.push(
-    `${counts.realCount} real past-paper questions, ${counts.smokeCount} pipeline smoke-test questions. ` +
+    `${counts.realCount} real past-paper questions, ${counts.smokeCount} pipeline smoke-test questions, ` +
+      `${counts.unverifiedCount} unverified model questions (never gate evidence). ` +
       `See golden_set/README.md before treating this as go/no-go gate evidence.`,
   );
   lines.push("");

@@ -1,4 +1,4 @@
-# Phase 0 source manifest — 41 documents, individually verified by direct
+# Phase 0 source manifest — 45 documents (41 syllabi + 4 reference documents), individually verified by direct
 # download (HTTP 200 + application/pdf) before being listed here. See the
 # research trail in this conversation for how each was found and checked.
 #
@@ -19,6 +19,15 @@
 # recover a document that was verifiably once published - fair-dealing
 # under NOTICE turns on what the government body actually published, not on
 # whether its web server still happens to serve that exact path today.
+#
+# doc_class: reference marks an Act, regulation or national policy, as opposed
+# to a syllabus. It has level: null (it applies to every exam level) and is
+# included in retrieval under any level filter. referring_page is the authority
+# page that vouches for the file; url is where the file is actually stored. For
+# these documents they are different hosts (a shared government CDN,
+# giwmscdnone.gov.np), so the authority is the referring page, not the storage
+# host. This tier exists to test whether real exam questions become answerable
+# once primary documents are in the corpus; see the corpus-scope ADR.
 #
 # federal (psc.gov.np) note: the site was rebuilt as a client-rendered app
 # since these were originally indexed, so every previously-published URL
@@ -474,3 +483,55 @@ documents:
     verified_on: "2026-09-17"
     verified_bytes: 68549
     note: "Companion file to FED-17 for the same exam - see that entry's note."
+
+  - id: REF-01
+    title: "Pesticide Management Regulation, 2081"
+    url: https://giwmscdnone.gov.np/media/pdf_upload/%E0%A4%9C%E0%A5%80%E0%A4%B5%E0%A4%A8%E0%A4%BE%E0%A4%B6%E0%A4%95%20%E0%A4%B5%E0%A4%BF%E0%A4%B7%E0%A4%BE%E0%A4%A6%E0%A5%80%20%E0%A4%B5%E0%A5%8D%E0%A4%AF%E0%A4%B5%E0%A4%B8%E0%A5%8D%E0%A4%A5%E0%A4%BE%E0%A4%AA%E0%A4%A8%20%E0%A4%A8%E0%A4%BF%E0%A4%AF%E0%A4%AE%E0%A4%BE%E0%A4%B5%E0%A4%B2%E0%A5%80%2C%20%E0%A5%A8%E0%A5%A6%E0%A5%AE%E0%A5%A7%20(%E0%A4%B8%E0%A4%82%20%E0%A5%A7%E0%A5%AE%2C%20%E0%A5%A9-%E0%A5%A8%E0%A5%AA)_vjsg2co.pdf
+    referring_page: https://moald.gov.np/content/215/pestise/
+    province: federal
+    level: null
+    groups: []
+    doc_class: reference
+    doc_type: regulation
+    verified_on: "2026-09-19"
+    verified_bytes: 9289681
+    note: "Reference document, not a syllabus. Cited by real exam questions (import licence fees). The ministry page carries a publisher line reading Ministry of Agriculture, Forest and Environment while the site is moald.gov.np; the vetting agent flagged the mismatch."
+
+  - id: REF-02
+    title: "Food Hygiene and Quality Act, 2081"
+    url: https://giwmscdnone.gov.np/media/pdf_upload/%E0%A4%96%E0%A4%BE%E0%A4%A6%E0%A5%8D%E0%A4%AF%20%E0%A4%B8%E0%A5%8D%E0%A4%B5%E0%A4%9A%E0%A5%8D%E0%A4%9B%E0%A4%A4%E0%A4%BE%20%E0%A4%A4%E0%A4%A5%E0%A4%BE%20%E0%A4%97%E0%A5%81%E0%A4%A3%E0%A4%B8%E0%A5%8D%E0%A4%A4%E0%A4%B0%20%E0%A4%90%E0%A4%A8%2C%20%E0%A5%A8%E0%A5%A6%E0%A5%AE%E0%A5%A7%20(%E0%A4%85%E0%A4%B0%E0%A5%80%20%E0%A5%A9%2C%20%E0%A5%A7-%E0%A5%A8%E0%A5%A9).pdf-1_v4y5qz8.pdf
+    referring_page: https://moald.gov.np/content/240/food-hygiene-and-quality-act--2081/
+    province: federal
+    level: null
+    groups: []
+    doc_class: reference
+    doc_type: statute
+    verified_on: "2026-09-19"
+    verified_bytes: 42801630
+    note: "Reference document, not a syllabus. Confirms the Act's real name, which contradicts an answer key in one of the unverified question sets."
+
+  - id: REF-03
+    title: "National Agriculture Policy, 2061"
+    url: https://giwmscdnone.gov.np/media/pdf_upload/nationalAgri-Policy-2061_zue4i1o.pdf
+    referring_page: https://moald.gov.np/content/36/national-agricultural-policy-2061/
+    province: federal
+    level: null
+    groups: []
+    doc_class: reference
+    doc_type: policy
+    verified_on: "2026-09-19"
+    verified_bytes: 87240
+    note: "Reference document, not a syllabus. A search summary claims a 2083 policy has replaced this one; that is unverified, but if true it is a live example of the currency risk for reference documents."
+
+  - id: REF-04
+    title: "Constitution of Nepal (Nepali Unicode edition, updated Bhadra 2081)"
+    url: https://giwmscdnone.gov.np/media/pdf_upload/%E0%A4%A8%E0%A5%87%E0%A4%AA%E0%A4%BE%E0%A4%B2%E0%A4%95%E0%A5%8B%20%E0%A4%B8_%E0%A4%82%E0%A4%B5%E0%A4%BF%E0%A4%A7%E0%A4%BE%E0%A4%A8%20unicode%20%E0%A4%AD%E0%A4%BE%E0%A4%A6%E0%A5%8D%E0%A4%B0%20%E0%A5%A8%E0%A5%A6%E0%A5%AE%E0%A5%A7_mtbuyjt.pdf
+    referring_page: https://lawcommission.gov.np/content/13437/nepal-s-constitution/
+    province: federal
+    level: null
+    groups: []
+    doc_class: reference
+    doc_type: statute
+    verified_on: "2026-09-19"
+    verified_bytes: 3209892
+    note: "Reference document, not a syllabus. Cited by four questions across the two unverified sets (Articles 36, 51 and the emergency provisions)."
