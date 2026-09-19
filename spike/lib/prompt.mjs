@@ -57,7 +57,7 @@ function formatSources(retrievedResults) {
       const groups = (chunk.serviceGroups || []).join(", ");
       return [
         `<source id="${chunk.chunkId}" title="${escapeAttr(chunk.sourceTitle)}" `,
-        `level="${chunk.examLevel}" province="${chunk.province}" groups="${escapeAttr(groups)}" `,
+        `level="${chunk.examLevel ?? "any"}" province="${chunk.province}" groups="${escapeAttr(groups)}" `,
         `url="${chunk.sourceUrl}" fetched_on="${chunk.fetchedOn}" retrieval_score="${score.toFixed(3)}">\n`,
         chunk.text,
         `\n</source>`,

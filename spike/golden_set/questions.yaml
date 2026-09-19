@@ -396,7 +396,7 @@ questions:
     type: real_past_paper
     question: "नेपालको संविधान बमोजिम अवशिष्ट अधिकार कसमा निहित हुन्छ?"
     reference_answer: "C. संघ (the federal government)"
-    expected_behavior: refuse
+    expected_behavior: answer
     filters: { level: 4 }
     source: "Koshi PSC, Local Agriculture Service, Agri Extension/Crop Protection, Level 4, 2082/01/27 BS, Q41."
     exam_level: 4
@@ -404,7 +404,7 @@ questions:
     service_group: agri_extension
     added_by: "ganesh-786"
     verified_on: "2026-09-18"
-    note: "General civil-service knowledge, not agriculture-specific - part of the real Paper I content but outside anything an agriculture syllabus corpus could ever support."
+    note: "General civil-service knowledge, not agriculture-specific. expected_behavior was refuse when this was written, because no syllabus could support it, and that was correct then. It is now answer because REF-04 (the Constitution) is in the corpus: Article 58 states that matters not listed for the federation, provinces or local level, or not assigned to any level, rest with the federation, which matches the reference answer. The expectation changed because the corpus changed and the answer was checked against the primary text independently of any run; the question and the reference answer were not touched. This is a deliberate change to argue on its own merits, not an edit made to pass a run."
 
   - id: PP-19
     type: real_past_paper
@@ -431,3 +431,79 @@ questions:
     service_group: agri_extension
     added_by: "ganesh-786"
     verified_on: "2026-09-18"
+
+  # --- Unverified model questions ----------------------------------------
+  # NOT real past-paper questions and NEVER counted toward the gate. These
+  # come from two compiled MCQ sets supplied for research: an Officer-level
+  # set on the letterhead of a coaching institute (typed, not scanned, with
+  # the institute's own key and notes, header claiming 100 questions but
+  # containing 50, claiming a federal Level 7 sitting on 2083/05/20 that
+  # could not be corroborated), and an untitled set with no institute, date
+  # or exam name (numbering gaps, garbled options, and an answer key that
+  # contradicts its own note). Neither meets the bar the Koshi Level 4 paper
+  # met, so the question text is provenance-unknown.
+  #
+  # What makes them useful is the ANSWER side. Each reference answer below was
+  # verified against a primary government document in the corpus (REF-04, the
+  # Constitution of Nepal, Unicode edition), not against the coaching key.
+  # That lets these test the thing a syllabus-only corpus never could: given
+  # the primary text, does the pipeline answer faithfully with a citation, or
+  # over-refuse. expected_behavior is what a careful human reading of the
+  # corpus supports, not what the pipeline currently does.
+  - id: U-01
+    type: unverified_model_question
+    question: "Which article of the Constitution of Nepal 2072 emphasizes the state's responsibility to ensure food sovereignty? (A) Article 26 (B) Article 36 (C) Article 47 (D) Article 57"
+    reference_answer: "(B) Article 36 (the right relating to food); the right to food sovereignty is its clause (3)."
+    answer_verified_against: "REF-04, Article 36 (खाद्य सम्बन्धी हक), clause (3)"
+    expected_behavior: answer
+    filters: { level: 7 }
+    source: "Compiled Officer-level MCQ set, coaching-institute letterhead, unverified provenance (see file header). Answer independently verified against REF-04."
+    exam_level: 7
+    province: federal
+    service_group: agri_extension
+    added_by: "ganesh-786"
+    verified_on: "2026-09-19"
+
+  - id: U-02
+    type: unverified_model_question
+    question: "\"प्रत्येक नागरिकलाई कानुन बमोजिम खाद्य सम्प्रभुताको हक हुनेछ।\" यो व्यवस्था नेपालको संविधानको कुन धारामा रहेको छ ? (a) ३५ (b) ३६ (c) ३७ (d) ३८"
+    reference_answer: "(b) धारा ३६ (Article 36)."
+    answer_verified_against: "REF-04, Article 36 clause (3), which contains this sentence"
+    expected_behavior: answer
+    filters: { level: 7 }
+    source: "Untitled compiled MCQ set, no institute, date or exam name; unverified provenance (see file header). Answer independently verified against REF-04."
+    exam_level: 7
+    province: federal
+    service_group: agri_extension
+    added_by: "ganesh-786"
+    verified_on: "2026-09-19"
+
+  - id: U-03
+    type: unverified_model_question
+    question: "According to the current constitution of Nepal, which of the following policy has provision to provide for sustainable production, supplies, storage, security, and easy and effective distribution of foods by encouraging food production in tune with climate and soil, in consonance with the concept of food sovereignty, while enhancing investment in the agriculture sector? (a) Policies relating to social justice and inclusion (b) Policies relating to basic needs of the citizens (c) Policies relating to protection, promotion and use of natural resources (d) Policies relating to agriculture and land reforms"
+    reference_answer: "(b) Policies relating to basic needs of the citizens - Article 51(ज), clause (12)."
+    answer_verified_against: "REF-04, Article 51 sub-heading (ज) नागरिकका आधारभूत आवश्यकता सम्बन्धी नीति, whose clause (12) is this text; the next sub-heading (ञ) begins after it"
+    expected_behavior: answer
+    filters: { level: 7 }
+    source: "Compiled Officer-level MCQ set, coaching-institute letterhead, unverified provenance (see file header). Answer independently verified against REF-04."
+    exam_level: 7
+    province: federal
+    service_group: agri_extension
+    added_by: "ganesh-786"
+    verified_on: "2026-09-19"
+    note: "Tests whether chunking keeps the parent sub-heading with the clause. The clause text and its heading can fall in different chunks, in which case a faithful pipeline cannot name the policy and should refuse."
+
+  - id: U-04
+    type: unverified_model_question
+    question: "According to the current constitution of Nepal, which of the following rights is suspended totally during a state of emergency? (a) Right to social justice (b) Right to food sovereignty (c) Right to live with dignity (d) Right to communication"
+    reference_answer: "(b) Right to food sovereignty."
+    answer_verified_against: "REF-04, Article 273(10): the rights that stay in force include Articles 16, 36(1) and (2), and 42, but not 36(3), the food sovereignty clause. Article 19 is only partly listed (clause (2))."
+    expected_behavior: answer
+    filters: { level: 7 }
+    source: "Untitled compiled MCQ set, no institute, date or exam name; unverified provenance (see file header). Answer independently verified against REF-04."
+    exam_level: 7
+    province: federal
+    service_group: agri_extension
+    added_by: "ganesh-786"
+    verified_on: "2026-09-19"
+    note: "Multi-step: needs Article 273(10)'s list of article numbers and the titles of those articles. The prompt's rule that every part must be pointed to in one place in the source may make a faithful pipeline refuse a question a careful reader can answer. This measures that cost; it is not a claim that answering is required."

@@ -98,6 +98,7 @@ async function main() {
   );
 
   const report = [];
+  const MIN_TEXT_LAYER_CHARS = 200;
 
   for (const [i, doc] of manifest.documents.entries()) {
     const pdfPath = path.join(paths.raw, `${doc.id}.pdf`);
@@ -116,6 +117,21 @@ async function main() {
 
       const outPath = path.join(paths.extracted, `${doc.id}.txt`);
       await fs.writeFile(outPath, text, "utf8");
+
+      // A scanned PDF has no text layer, so pdf-parse succeeds and returns
+      // almost nothing. This used to print "OK - 0 chars" and carry on, so a
+      // 91-page regulation and a 51-page Act were treated as extracted while
+      // producing no chunks and no warning. Nothing real is under 200
+      // characters, so treat that as a distinct, visible failure that needs
+      // OCR (ADR-0002) instead of a success.
+      if (analysis.totalChars < MIN_TEXT_LAYER_CHARS) {
+        console.log(
+          `NO TEXT LAYER - ${analysis.totalChars} chars from a ${(exists.size / 1024 / 1024).toFixed(1)} MB file, ` +
+            `almost certainly a scanned image. Needs OCR with mandatory review (ADR-0002); nothing will be chunked.`,
+        );
+        report.push({ id: doc.id, status: "no_text_layer", bytes: exists.size, ...analysis });
+        continue;
+      }
 
       const flag = analysis.gibberishLines ? "  (legacy-font lines found)" : "";
       console.log(

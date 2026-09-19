@@ -301,6 +301,61 @@ ever showing it), or accept the ~20 RPD ceiling of a full model and redesign
 the capacity plan around it. All three are real options with real costs;
 none should be drifted into by default.
 
+### Do primary documents change the answer? A four-document experiment
+
+The syllabus-only corpus can only refuse most real questions. To see what
+primary documents would change, four government reference documents were added
+by hand to the spike corpus (never to the crawler or the whitelist) and the
+golden set was run again. Details and the vetting results are in
+[ADR-0007](adr/0007-primary-reference-documents-in-the-corpus.md); this section
+records what the run showed, judged by hand against the cited text, not by the
+harness's pass count.
+
+**Only one of the four was usable as fetched.** The Constitution has a real
+Unicode text layer (with systematic character loss). The 91-page Pesticide
+Management Regulation and the 51-page Food Hygiene and Quality Act are scanned
+images with no text at all, and the National Agriculture Policy is legacy
+Preeti font. So this was an experiment on one document, the Constitution, and
+the format problem is itself a finding.
+
+**Existing questions did not regress.** All 13 smoke tests and every real
+question that refused before still refuse. Adding 228 reference chunks under the
+level filter did not disturb them.
+
+| Question | Outcome, judged against the cited chunk |
+|---|---|
+| `PP-18` (real, Level 4: who holds residual power) | Was a refusal; now a **faithful, correct answer** citing Article 58. The first of the 20 real questions to be answered because a primary document was added. |
+| `U-02` (Nepali: which article contains the food sovereignty right) | **Faithful and correct**, Article 36 clause (3), cited to the chunk that contains it. |
+| `U-03` (which policy contains the food sovereignty clause) | **Faithful and correct**, the Article 51(ज) heading and clause 12 fell in adjacent chunks and both were retrieved. |
+| `U-01` (same as `U-02`, asked in English) | **Refused, because retrieval missed it.** The Article 36 chunk exists but an English query over a Nepali-only corpus retrieved neighbouring chunks. A recall failure, the "we failed to find this" refusal ADR-0003 warns about, not a faithfulness failure. |
+| `U-04` (which right is suspended in an emergency) | **Not faithful**, and the harness scored it as a pass. The answer says "Article 16 (Right to live with dignity)" is excluded from suspension, but the cited chunk lists article numbers only; the label is not in it. The model supplied it from outside the source, and its statement that the other rights are "not listed" misreads a list of unlabelled numbers. It should have refused. |
+
+What this supports and does not:
+
+- Adding a primary document does turn refusals into faithful, cited answers, on
+  one real question and two unverified ones. That is the first evidence for
+  ADR-0007 and it is small: one document, four questions, one real.
+- It does not fix recall. Cross-language retrieval is a separate problem, and
+  `PP-20` (the annual report of a provincial commission) is probably answerable
+  from the Constitution but still refuses; that was not verified because the
+  extraction's character loss defeats a plain text search.
+- A mechanical "answered as expected" can hide an unsupported claim. `U-04` is
+  why the by-hand read stays mandatory.
+- The unverified tier stays out of the gate. Its questions have unknown
+  provenance; only its answers were checked, against the primary text.
+
+**Two defects in my own recording, corrected.** `U-01` and `U-02` were first
+written without their four MCQ options, which changed what was being asked; the
+options are restored and the results above are from the corrected questions. The
+same omission applies to the 20 real questions already merged: they were
+recorded without their options, so "exactly as asked" is not met for them. That
+needs re-transcribing from the original paper, which is not in the repository.
+
+**Tooling fixed on the way.** `extract.mjs` reported "OK - 0 chars" for scanned
+files and now reports `NO TEXT LAYER`. Quota errors were all treated as
+unrecoverable, so an embedding run stopped on a per-minute limit that clears in
+under a minute; per-minute and per-day quotas are now told apart.
+
 ## Operational metrics
 
 Separate from answer quality, and measured from the first deployment:
