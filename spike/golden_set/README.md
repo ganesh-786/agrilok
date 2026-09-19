@@ -69,6 +69,25 @@ faithful. The corpus question in
 needs a decision before real past papers can test what the gate means them
 to test.
 
+## A third tier: unverified model questions
+
+`type: unverified_model_question` holds compiled MCQs whose own provenance
+cannot be established (a coaching institute's retyped set, an untitled
+compilation with numbering gaps and a key that contradicts its own notes).
+They are **never counted toward the gate**, and `evaluate.mjs` reports them
+in a separate count so they cannot be mistaken for it.
+
+They exist because their *answer* side can be verified even when their
+*question* side cannot: a reference answer is checked against a primary
+government document in the corpus, never against the compiler's key. That
+makes them a fair test of whether the pipeline answers faithfully once the
+primary text is present, or over-refuses. `answer_verified_against` names the
+document and the place.
+
+The bar for a `real_past_paper` entry did not move: an official PSC-hosted
+file, or a scan of the physical booklet showing the PSC header, KEY and date,
+ideally with a live notice for the same vacancy.
+
 ## Format for real entries, when they arrive
 
 ```yaml
