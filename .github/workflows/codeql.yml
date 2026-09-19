@@ -27,7 +27,7 @@ jobs:
       javascript: ${{ steps.check.outputs.javascript }}
       python: ${{ steps.check.outputs.python }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - id: check
         shell: bash
         run: |
@@ -61,7 +61,7 @@ jobs:
             enabled: ${{ needs.detect.outputs.python }}
     steps:
       - if: matrix.enabled == 'true'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - if: matrix.enabled == 'true'
         name: Initialize CodeQL
