@@ -63,7 +63,111 @@ defaults:
 #     approved_on: "YYYY-MM-DD"
 #     notes: "Scanned PDFs are common here - expect OCR and mandatory review."
 
-sources: []
+sources:
+  # First approvals, 2026-09-23, under ADR-0007 (primary reference documents,
+  # staged). Scope is deliberately narrow: named pages only, not whole sites.
+  # Widening allowed_paths is a new approval, not an edit.
+
+  - id: moald-policy
+    name: "Ministry of Agriculture and Livestock Development"
+    domain: moald.gov.np
+    authority: >-
+      Federal ministry responsible for agriculture; publishes agricultural
+      policy, regulations and guidelines. Named as eligible in
+      docs/data-governance.md.
+    provinces: [federal]
+    exam_levels: [level_4, level_7]
+    doc_types: [policy, regulation, statute]
+    allowed_paths:
+      - "/content/215/"   # Pesticide Management Regulation 2081
+      - "/content/240/"   # Food Hygiene and Quality Act 2081
+      - "/content/36/"    # National Agriculture Policy 2061
+    robots_txt:
+      permits_our_paths: true
+      checked_on: "2026-09-19"
+      checked_by: "@ganesh-786"
+      verbatim: |
+        User-agent: *
+        Crawl-delay: 10
+    terms_of_use: none_found
+    download_delay_seconds: 10
+    recrawl_interval_days: 30
+    approved_by: "@ganesh-786"
+    approved_on: "2026-09-23"
+    request_issue: 20
+    notes: >-
+      Conditions carried from vetting (issue #20). The files these pages link to
+      are stored on giwmscdnone.gov.np, a shared government CDN with no
+      robots.txt. That host is NOT approved by this entry; fetching the files
+      needs its own request. Pages carry the publisher name "Ministry of
+      Agriculture, Forest and Environment" - confirm the current ministry name
+      before showing it to students. Two of the three documents are scanned or
+      legacy-font and must pass the OCR gate in ADR-0009 before use. The 2061
+      policy may have been replaced by a 2083 one; check currency first.
+
+  - id: lawcommission-np
+    name: "Nepal Law Commission"
+    domain: lawcommission.gov.np
+    authority: >-
+      Government body under the Ministry of Law, Justice and Parliamentary
+      Affairs; publishes the Constitution, Acts and Regulations. Added to the
+      eligible list in docs/data-governance.md with this approval.
+    provinces: [federal]
+    exam_levels: [level_4, level_7]
+    doc_types: [statute, regulation]
+    allowed_paths:
+      - "/content/13437/"   # Constitution of Nepal
+      - "/content/12769/"   # Pesticide Management Act 2076
+    robots_txt:
+      permits_our_paths: true
+      checked_on: "2026-09-19"
+      checked_by: "@ganesh-786"
+      verbatim: |
+        User-agent: *
+        Crawl-delay: 10
+    terms_of_use: none_found
+    download_delay_seconds: 10
+    recrawl_interval_days: 30
+    approved_by: "@ganesh-786"
+    approved_on: "2026-09-23"
+    request_issue: 21
+    notes: >-
+      Conditions carried from vetting (issue #21). Pages show no amendment
+      history; every answer citing this source must show the fetch date, and
+      the Nepal Gazette remains the legal record. The Constitution PDF is stored
+      on giwmscdnone.gov.np, which this entry does NOT approve. Statutes are
+      short: summarise and quote only what a question needs, never reproduce
+      an Act in full.
+
+  - id: narc
+    name: "Nepal Agricultural Research Council"
+    domain: narc.gov.np
+    authority: >-
+      Statutory research council established under the NARC Act 2048. Named as
+      eligible in docs/data-governance.md.
+    provinces: [federal]
+    exam_levels: [level_4, level_7]
+    doc_types: [strategy, variety_release, technical_bulletin]
+    allowed_paths: []   # empty until the real document URLs are found by hand
+    robots_txt:
+      permits_our_paths: true
+      checked_on: "2026-09-19"
+      checked_by: "@ganesh-786"
+      verbatim: |
+        User-agent: *
+        Disallow:
+    terms_of_use: none_found
+    download_delay_seconds: 5
+    recrawl_interval_days: 14
+    approved_by: "@ganesh-786"
+    approved_on: "2026-09-23"
+    request_issue: 22
+    notes: >-
+      Conditions carried from vetting (issue #22). The commonly cited Vision
+      2011-2030 URL returns the homepage, not the document, so no path is
+      crawlable yet; add paths one by one as real URLs are confirmed.
+      Subdomains (soil., aana., journal., opac., kms.) are separate hosts and
+      are not covered.
 
 # -----------------------------------------------------------------------------
 # CANDIDATES - known, NOT yet vetted, NOT crawlable.
@@ -107,9 +211,6 @@ candidates:
     note: "Sudurpaschim Province PSC - domain to be confirmed."
     robots_txt_checked: null
 
-  - domain: narc.gov.np
-    note: "Nepal Agricultural Research Council - technical and research material."
-    robots_txt_checked: null
 
 # -----------------------------------------------------------------------------
 # EXCLUDED - do not propose these again.

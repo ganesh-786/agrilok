@@ -17,8 +17,9 @@ constraint and an accident.
 | [0004](0004-cache-first-serving.md) | Survive the free tier by pre-generating and caching | Accepted |
 | [0005](0005-untrusted-retrieved-context.md) | Treat retrieved content as data, never as instructions | Accepted |
 | [0006](0006-golden-set-evaluation.md) | Measure faithfulness against a golden set, and gate on it | Accepted |
-| [0007](0007-primary-reference-documents-in-the-corpus.md) | Add primary reference documents to the corpus, in stages | Proposed |
-| [0008](0008-generation-model-tier.md) | Choose the generation model tier for live and pre-generated answers | Proposed |
+| [0007](0007-primary-reference-documents-in-the-corpus.md) | Add primary reference documents to the corpus, in stages | Accepted |
+| [0008](0008-generation-model-tier.md) | Choose the generation model tier for live and pre-generated answers | Accepted |
+| [0009](0009-content-review-workflow.md) | The content review workflow, as an actual mechanism | Accepted |
 
 ## Writing one
 

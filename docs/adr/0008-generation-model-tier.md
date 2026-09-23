@@ -1,6 +1,6 @@
 # ADR-0008: Choose the generation model tier for live and pre-generated answers
 
-- **Status:** Proposed
+- **Status:** Accepted (2026-09-23)
 - **Date:** 2026-09-19
 - **Deciders:** @ganesh-786
 - **Supersedes / Superseded by:** none
@@ -62,7 +62,7 @@ strongest model where quality matters most and volume is lowest.
 
 ## Decision
 
-**Proposed: Option D combined with Option C. Not yet accepted.**
+**Accepted 2026-09-23: Option D combined with Option C.**
 
 - Use the strongest available model to pre-generate topic explanations, one call
   per topic, each reviewed by a named person before it is marked verified.

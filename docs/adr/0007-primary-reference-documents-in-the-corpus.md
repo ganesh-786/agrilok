@@ -1,6 +1,6 @@
 # ADR-0007: Add primary reference documents to the corpus, in stages
 
-- **Status:** Proposed
+- **Status:** Accepted (2026-09-23)
 - **Date:** 2026-09-19
 - **Deciders:** @ganesh-786
 - **Supersedes / Superseded by:** none. Answers the open question in
@@ -117,7 +117,7 @@ shows what a model does with a gap when it is allowed to.
 
 ## Decision
 
-**Proposed: Option B, in stages. Not yet accepted.**
+**Accepted 2026-09-23: Option B, in stages.**
 
 - Stage 1 is a named list of legal and policy documents that real exam
   questions demonstrably cite, starting with the Constitution (the only
