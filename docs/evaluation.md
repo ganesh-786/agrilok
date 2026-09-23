@@ -356,6 +356,53 @@ files and now reports `NO TEXT LAYER`. Quota errors were all treated as
 unrecoverable, so an embedding run stopped on a per-minute limit that clears in
 under a minute; per-minute and per-day quotas are now told apart.
 
+### The support check and model fallback (ADR-0008)
+
+**What was built.** Every claim in an answer now carries one verbatim quote
+from one source. Before the answer is shown, a deterministic check (no model
+calls) confirms the quote is one contiguous passage of the cited chunk, that
+the claim's numbers are in it, and that the claim does not borrow words from
+elsewhere in the chunk. A failed check withholds the answer as a refusal. A
+plain "are the words in the chunk" check, as ADR-0008 first described it,
+would not have caught `PP-01`: both "crop cutting" and "secondary data" are in
+that chunk, in two separate numbered items. Requiring one passage does.
+
+Generation also falls back from `gemini-3.1-flash-lite` to
+`gemini-3.5-flash-lite` on overload or quota errors, never on "model not
+found", and every answer records which model produced it.
+
+**What the live run showed (2026-09-23), judged by hand, not by pass count.**
+The primary model was overloaded for the whole run, so 32 of 37 questions were
+answered by the fallback. This is therefore not a clean like-for-like
+comparison with the previous baseline (35/37 on the primary, no check).
+
+- **Faithfulness did not drop.** No new unfaithful answer appeared. `U-04`,
+  unfaithful last run, now refuses.
+- **The check caught a real error.** `SMOKE-03`'s answer attributed interview
+  marks to the "Veterinary Group" while citing the multi-group syllabus that is
+  not the veterinary one. The model had mixed two documents. Withheld.
+- **The first version of the check was too strict**, and three good answers
+  were withheld: numbers and words the question itself contains ("Level 7",
+  "Article 36"), a number from the article heading just above the quoted clause,
+  and quotes the model copied from damaged legacy-font text with in-word spaces
+  or literal escape codes. Each was fixed and re-checked against the saved
+  answers, with every fabrication test still rejected.
+- **One genuine answer is still withheld**, `SMOKE-05`. Its quote scores 0.74
+  against a bar of 0.85 because the source has lost letters in extraction. Of 37
+  genuine quotes, 36 scored 0.87 or higher; the fabrication tests score 0.55
+  (stitched) and 0.27 (invented). The bar stays at 0.85. A wrongly withheld
+  answer is the safe failure, and the fix belongs in extraction.
+- **The fallback model refuses more.** `SMOKE-13`, `PP-16`, `U-01` and `U-04`
+  were refused by `gemini-3.5-flash-lite` itself, before any check ran.
+
+Re-scored on the saved answers: **31 of 37 match**, against 35 of 37 before.
+The drop is in how often the system answers, not in faithfulness.
+
+**Not yet shown live:** the check catching `PP-01` on the model that
+fabricated it. `gemini-3.1-flash-lite` was down, and the fallback refused
+`PP-01` on its own. The offline tests reject every form of that answer, but the
+live case is still owed, as is a clean run once the primary model is back.
+
 ## Operational metrics
 
 Separate from answer quality, and measured from the first deployment:

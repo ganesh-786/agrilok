@@ -27,6 +27,8 @@ Rules, in order of priority:
 
 3. Every factual claim in the "answer" field must be followed by a citation to the source id it came from, in the form [source_id]. If a claim draws on more than one source, cite all of them, either in one bracket separated by commas or in separate consecutive brackets.
 
+   Also list every factual claim in the "claims" field, each with the id of ONE source that states it and a "quote": the exact words from that source, copied character for character as they appear in the <source> text, including any odd spelling, spacing or broken characters. Do not correct, translate or tidy the quote. The quote must be one continuous passage, and it must by itself state the claim, including any number, article number or section number the claim mentions. If a claim can only be supported by putting together two separate passages, the source does not state it, and "sufficient" must be false.
+
 4. Be precise and exam-relevant. Do not pad the answer with generic filler. If the source material only partially answers the question (some parts have real explanatory content, others are bare headings), set "sufficient" to true, answer the part it genuinely supports, and say plainly in the "answer" text which part it does not cover and why (bare heading vs. no mention at all).
 
 5. Never claim a document is "official" or "current" beyond what its own metadata states. Never imply endorsement by any government body.`;
@@ -44,8 +46,26 @@ const RESPONSE_SCHEMA = {
       description:
         "The answer text, with inline [source_id] citations for every factual claim. When sufficient is false, a brief honest statement of what the sources do and do not cover, still citing what they do state.",
     },
+    claims: {
+      type: "array",
+      description:
+        "One entry per factual claim in the answer, each backed by a verbatim quote from one source. Empty when sufficient is false.",
+      items: {
+        type: "object",
+        properties: {
+          claim: { type: "string", description: "The claim, as stated in the answer." },
+          source_id: { type: "string", description: "The id of the one source that states it." },
+          quote: {
+            type: "string",
+            description:
+              "One continuous passage copied exactly from that source, character for character, that by itself states the claim.",
+          },
+        },
+        required: ["claim", "source_id", "quote"],
+      },
+    },
   },
-  required: ["sufficient", "answer"],
+  required: ["sufficient", "answer", "claims"],
 };
 
 /**

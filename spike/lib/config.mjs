@@ -61,11 +61,21 @@ export function getApiKey() {
 // stale default here would be silently wrong regardless of what the
 // example file says.
 export const gemini = {
-  generationModel: process.env.GEMINI_GENERATION_MODEL || "gemini-2.5-flash",
+  // gemini-2.5-flash, the earlier default, was retired for new users.
+  generationModel: process.env.GEMINI_GENERATION_MODEL || "gemini-3.1-flash-lite",
+  // Tried in order when the model above is overloaded or out of quota. Keep
+  // this to Lite-tier models (ADR-0008) and run the golden set when it changes.
+  generationFallbacks: (process.env.GEMINI_GENERATION_FALLBACKS ?? "gemini-3.5-flash-lite")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean),
   embeddingModel: process.env.GEMINI_EMBEDDING_MODEL || "gemini-embedding-001",
   embeddingDimensions: int("GEMINI_EMBEDDING_DIMENSIONS", 768),
   maxRequestsPerMinute: int("GEMINI_MAX_REQUESTS_PER_MINUTE", 5),
-  requestTimeoutMs: int("GEMINI_REQUEST_TIMEOUT_MS", 30000),
+  // 90s: every claim now carries a verbatim quote, so answers are longer, and a
+  // busy model can take over 30s to finish one. At 30s the request was cut off
+  // and retried from scratch, repeatedly.
+  requestTimeoutMs: int("GEMINI_REQUEST_TIMEOUT_MS", 90000),
 };
 
 export const retrieval = {

@@ -39,7 +39,7 @@ const MAX_RETRIES = 4;
 // never stall a run indefinitely.
 const MAX_BACKOFF_MS = 20000;
 
-async function callWithRetry(fn, label) {
+async function callWithRetry(fn, label, maxRetries = MAX_RETRIES) {
   let attempt = 0;
   for (;;) {
     attempt += 1;
@@ -56,7 +56,7 @@ async function callWithRetry(fn, label) {
       // reset in that window. err.exhausted is set below, from the parsed
       // response body, not from the status code alone.
       const retryable = RETRYABLE_STATUS.has(status) && !err.exhausted;
-      if (!retryable || attempt > MAX_RETRIES) {
+      if (!retryable || attempt > maxRetries) {
         throw err;
       }
       const retryAfterMs = err.retryAfterSeconds ? err.retryAfterSeconds * 1000 : null;
@@ -66,7 +66,7 @@ async function callWithRetry(fn, label) {
       );
       console.warn(
         `  [gemini] ${label} got ${status}, retrying in ${Math.round(backoffMs / 1000)}s ` +
-          `(attempt ${attempt}/${MAX_RETRIES})`,
+          `(attempt ${attempt}/${maxRetries})`,
       );
       await sleep(backoffMs);
     }
@@ -141,7 +141,7 @@ export function buildApiError(status, rawText, label, retryAfterHeader) {
   return err;
 }
 
-async function post(pathSuffix, body, label) {
+async function post(pathSuffix, body, label, maxRetries = MAX_RETRIES) {
   const url = `${API_BASE}/${pathSuffix}`;
   // label is passed through to callWithRetry below as well as being used
   // directly inside this closure - it used to be captured here but never
@@ -178,7 +178,7 @@ async function post(pathSuffix, body, label) {
       throw buildApiError(res.status, text, label, res.headers.get("retry-after"));
     }
     return res.json();
-  }, label);
+  }, label, maxRetries);
 }
 
 /**
@@ -326,21 +326,45 @@ export async function generate({ systemInstruction, contents, temperature = 0.1,
     contents,
     generationConfig: {
       temperature,
-      maxOutputTokens: 2048,
+      // Each claim now carries a verbatim quote, and Devanagari quotes are
+      // token-heavy. 2048 risked cutting the JSON off mid-object, which would
+      // surface as malformed_structured_output rather than an answer.
+      maxOutputTokens: 4096,
       ...(responseSchema ? { responseMimeType: "application/json", responseSchema } : {}),
     },
   };
-  const json = await post(
-    `models/${geminiConfig.generationModel}:generateContent`,
-    body,
-    "generate",
-  );
+  // Fallback chain (ADR-0008). Only overload and quota errors move to the next
+  // model; "model not found" still throws, because a retired model must fail
+  // loudly, not be swapped out silently. Every model in the chain is a Lite
+  // model, so the live path stays on the tier ADR-0008 chose, and the answer
+  // records which model produced it. The support check runs after this
+  // regardless, so a fallback model gets no easier pass than the primary.
+  const models = [geminiConfig.generationModel, ...geminiConfig.generationFallbacks];
+  let json;
+  let model;
+  const skipped = [];
+  for (const [i, m] of models.entries()) {
+    const isLast = i === models.length - 1;
+    try {
+      // With a fallback still available, give up on an overloaded model
+      // after one retry instead of four: waiting 30s on a model that is
+      // down is worse than asking one that is up.
+      json = await post(`models/${m}:generateContent`, body, `generate[${m}]`, isLast ? MAX_RETRIES : 1);
+      model = m;
+      break;
+    } catch (err) {
+      const overloadOrQuota = err.status === 429 || err.status === 500 || err.status === 503 || err.status === 504;
+      if (isLast || !overloadOrQuota) throw err;
+      skipped.push({ model: m, status: err.status });
+      console.warn(`  [gemini] ${m} unavailable (HTTP ${err.status}), falling back to ${models[i + 1]}`);
+    }
+  }
 
   const candidate = json?.candidates?.[0];
   if (!candidate) {
     const blockReason = json?.promptFeedback?.blockReason;
     if (blockReason) {
-      return { text: null, blocked: true, blockReason, raw: json };
+      return { text: null, blocked: true, blockReason, model, skipped, raw: json };
     }
     throw new Error(`generate returned no candidates: ${JSON.stringify(json).slice(0, 300)}`);
   }
@@ -349,6 +373,8 @@ export async function generate({ systemInstruction, contents, temperature = 0.1,
     text,
     blocked: false,
     finishReason: candidate.finishReason,
+    model,
+    skipped,
     raw: json,
   };
 }
