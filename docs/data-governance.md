@@ -18,8 +18,10 @@ on, they are added here - not assumed.
 
 **Eligible:** official sources only - the federal Public Service Commission, the
 seven Provincial Public Service Commissions, NARC, the ministry responsible for
-agriculture and its agencies, the Nepal Gazette, and public university or
-institute curricula where they are the authority on a syllabus.
+agriculture and its agencies, the Nepal Gazette, the Nepal Law Commission (for
+the Constitution, Acts and Regulations, added 2026-09-23 with ADR-0007), and
+public university or institute curricula where they are the authority on a
+syllabus.
 
 **Not eligible,** regardless of accuracy: coaching-centre notes, exam-prep
 blogs, PDF aggregators, Facebook groups, YouTube channels, Telegram channels.

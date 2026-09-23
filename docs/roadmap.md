@@ -94,9 +94,14 @@ evidence.
       [docs/evaluation.md](evaluation.md#phase-0),
       [docs/free-tier-budget.md](free-tier-budget.md) and
       [ADR-0008](adr/0008-generation-model-tier.md).
-- [ ] Content review workflow **decided before the crawler goes live**.
+- [x] Content review workflow **decided before the crawler goes live**.
       Publishing unreviewed scraped content straight to students defeats the
       entire trust premise of the project.
+      **Decided 2026-09-23:** [ADR-0009](adr/0009-content-review-workflow.md),
+      accepted. One review item per source document, a hard OCR gate before
+      scanned text can enter review, and self-review recorded as self-review
+      while there is one reviewer. The tooling that opens review items does not
+      exist yet; that is Phase 1 work.
 - [ ] **One person named** as owner of the trusted-source whitelist, so it
       cannot silently grow to include unreliable sites.
       **Evidence exists; box left for the owner to tick.** @ganesh-786 is
