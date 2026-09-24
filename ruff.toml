@@ -1,5 +1,5 @@
-# Shared ruff settings for every Python component (CLAUDE.md: 100 columns,
-# 4-space indent). Ruff finds this file from any subdirectory, so the
+# Shared ruff settings for every Python component (CONTRIBUTING.md, Code
+# style: 100 columns, 4-space indent). Ruff finds this file from any subdirectory, so the
 # per-component `ruff check .` in CI picks it up.
 
 line-length = 100

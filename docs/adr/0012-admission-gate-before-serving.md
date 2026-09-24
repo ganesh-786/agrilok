@@ -22,7 +22,9 @@ Two statements in the project pull against each other once there is code:
 
 Read literally, (1) says nothing unreviewed may answer, and (2) says
 unreviewed content is served with a label. Both are right about different
-things. Meanwhile CLAUDE.md forbids a third review state.
+things. Meanwhile ground rule 2 in
+[CONTRIBUTING.md](../../CONTRIBUTING.md#ground-rules) forbids a third review
+state.
 
 Phase 1 also starts with 43 hand-collected documents from Phase 0, every one of
 them from a source that is new to the running system.

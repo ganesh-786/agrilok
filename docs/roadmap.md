@@ -58,7 +58,7 @@ evidence.
       under the corrected prompt on `gemini-3.1-flash-lite` specifically -
       confirmed a model-capability ceiling, not a prompt gap, by sending the
       identical prompt and context to two other models in the same family,
-      both of which correctly refused. Per [CLAUDE.md](../CLAUDE.md),
+      both of which correctly refused. Per [the evaluation gate](evaluation.md#the-gate),
       faithfulness never regresses - a drop is a blocking bug, not a
       trade-off, and hitting the count of questions the gate names does not
       override a confirmed failure sitting inside that count.

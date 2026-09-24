@@ -5,5 +5,5 @@
     "pipeline_smoke_test": 13,
     "real_past_paper": 20
   },
-  "rule": "Raise a number when a run does better and its answered rows have been checked by hand. Never lower one to make a run pass: a drop in faithfulness is a blocking bug (CLAUDE.md rule 9)."
+  "rule": "Raise a number when a run does better and its answered rows have been checked by hand. Never lower one to make a run pass: a drop in faithfulness is a blocking bug (docs/evaluation.md, The gate)."
 }

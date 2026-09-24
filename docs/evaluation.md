@@ -230,9 +230,9 @@ the one that matters most:
   that directly match all four options in the question.
 
 **What this means for the gate.** The numeric target (20 real past-paper
-questions, faithfulness checked by hand) is met. Per
-[CLAUDE.md](../CLAUDE.md)'s own rule, "faithfulness never regresses - a drop
-is a blocking bug, not a trade-off", and `PP-01` is exactly that: a
+questions, faithfulness checked by hand) is met. Per this document's own
+rule ([the gate](#the-gate)), "a drop is a blocking bug, not a trade-off",
+and `PP-01` is exactly that: a
 confirmed, reproducible faithfulness failure on real exam content, now
 recorded as a live regression case rather than a one-off anecdote. Hitting
 the number of questions the gate names is not the same as the gate being
@@ -286,8 +286,8 @@ Staying on the Lite tier for continued testing is the considered choice, not
 an oversight - see [docs/free-tier-budget.md](free-tier-budget.md) for why
 volume matters this much. The residual risk this leaves is bounded by the
 rest of the architecture, not eliminated by it: `verified` content only
-reaches a student after human review (non-negotiable rule 2 in
-[CLAUDE.md](../CLAUDE.md)), and [ADR-0004](adr/0004-cache-first-serving.md)'s
+reaches a student after human review (ground rule 2 in
+[CONTRIBUTING.md](../CONTRIBUTING.md#ground-rules)), and [ADR-0004](adr/0004-cache-first-serving.md)'s
 cache-first design means most traffic is pre-generated and reviewed, never
 live. This specific weakness lives in the minority, uncached, genuinely-novel
 live query path - real, and not the whole product's exposure.
