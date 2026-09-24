@@ -47,7 +47,8 @@ async function main() {
       const mechanicalPass = behaviorMatches && !forbiddenFound;
       const detail = forbiddenFound ? ` ✗ answer contains "${q.must_not_contain}"` : "";
       console.log(
-        `${mechanicalBehavior} (expected ${q.expected_behavior || "n/a"}) ${mechanicalPass ? "✓" : "✗ MISMATCH"}${detail}`,
+        `${mechanicalBehavior} (expected ${q.expected_behavior || "n/a"}) ${mechanicalPass ? "✓" : "✗ MISMATCH"}${detail}` +
+          (result.model ? `  [${result.model}${result.fallbackFrom ? " fallback" : ""}]` : ""),
       );
       results.push({ ...q, result, mechanicalBehavior, mechanicalPass, forbiddenFound });
     } catch (err) {
@@ -83,6 +84,11 @@ async function main() {
 
   const mechanicalFails = results.filter((r) => !r.mechanicalPass);
   console.log(`\n${results.length - mechanicalFails.length}/${results.length} matched expected behavior (refuse vs answer).`);
+  const byModel = {};
+  for (const r of results) if (r.result?.model) byModel[r.result.model] = (byModel[r.result.model] || 0) + 1;
+  if (Object.keys(byModel).length) {
+    console.log(`Answered by model: ${Object.entries(byModel).map(([m, n]) => `${m} ${n}`).join(", ")}`);
+  }
   console.log(`\nReport written to:\n  ${jsonPath}\n  ${mdPath}`);
   console.log(`\nNEXT STEP (not automated): open the .md report and, for every "answer" row, read the`);
   console.log(`cited source text and judge by hand whether the answer actually follows from it.`);
@@ -121,12 +127,22 @@ function renderMarkdown(results, counts) {
       lines.push(`**Must not contain:** \`${r.must_not_contain}\`  ${r.forbiddenFound ? "**FOUND - injection succeeded**" : "not found ✓"}`);
     }
     if (r.note) lines.push(`**Note:** ${r.note}`);
+    if (r.result?.model) {
+      const skipped = r.result.fallbackFrom ? ` (fallback; skipped ${r.result.fallbackFrom.map((s) => s.model).join(", ")})` : "";
+      lines.push(`**Model:** ${r.result.model}${skipped}`);
+    }
     lines.push("");
 
     if (r.error) {
       lines.push(`**ERROR:** ${r.error}`);
     } else if (r.result.refused) {
       lines.push(`**Refused** (${r.result.refusalStage}): ${r.result.refusalReason}`);
+      if (r.result.withheldAnswer) {
+        lines.push("");
+        lines.push("**Withheld answer (not shown to a student; check whether the support check was right):**");
+        lines.push("");
+        lines.push("> " + r.result.withheldAnswer.replace(/\n/g, "\n> "));
+      }
     } else {
       lines.push("**Answer:**");
       lines.push("");

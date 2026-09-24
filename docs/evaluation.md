@@ -197,10 +197,10 @@ Level 7 past paper has been found yet.
 
 **What running them found - three faithfulness outcomes, not one.** Each
 question was run against the live pipeline before its expected behaviour was
-written, the same discipline as the smoke tests. 18 of 20 correctly refuse:
+written, the same discipline as the smoke tests. 17 of 20 correctly refuse:
 the syllabus corpus genuinely does not contain the specific facts these MCQs
 test (scientific names, exact percentages, named regulations), so refusal is
-the correct, faithful result, not a shortfall. Two produced an answer worth
+the correct, faithful result, not a shortfall. Three produced an answer worth
 naming individually, because the aggregate pass count would otherwise hide
 the one that matters most:
 
@@ -355,6 +355,98 @@ needs re-transcribing from the original paper, which is not in the repository.
 files and now reports `NO TEXT LAYER`. Quota errors were all treated as
 unrecoverable, so an embedding run stopped on a per-minute limit that clears in
 under a minute; per-minute and per-day quotas are now told apart.
+
+### The support check and model fallback (ADR-0008)
+
+**What was built.** Every claim in an answer now carries one verbatim quote
+from one source. Before the answer is shown, a deterministic check (no model
+calls) confirms the quote is one contiguous passage of the cited chunk, that
+the claim's numbers are in it, and that the claim does not borrow words from
+elsewhere in the chunk. A failed check withholds the answer as a refusal. A
+plain "are the words in the chunk" check, as ADR-0008 first described it,
+would not have caught `PP-01`: both "crop cutting" and "secondary data" are in
+that chunk, in two separate numbered items. Requiring one passage does.
+
+Generation also falls back from `gemini-3.1-flash-lite` to
+`gemini-3.5-flash-lite` on overload or quota errors, never on "model not
+found", and every answer records which model produced it.
+
+**What the live run showed (2026-09-23), judged by hand, not by pass count.**
+The primary model was overloaded for the whole run, so 32 of 37 questions were
+answered by the fallback. This is therefore not a clean like-for-like
+comparison with the previous baseline (35/37 on the primary, no check).
+
+- **Faithfulness did not drop.** No new unfaithful answer appeared. `U-04`,
+  unfaithful last run, now refuses.
+- **The check caught a real error.** `SMOKE-03`'s answer attributed interview
+  marks to the "Veterinary Group" while citing the multi-group syllabus that is
+  not the veterinary one. The model had mixed two documents. Withheld.
+- **The first version of the check was too strict**, and three good answers
+  were withheld: numbers and words the question itself contains ("Level 7",
+  "Article 36"), a number from the article heading just above the quoted clause,
+  and quotes the model copied from damaged legacy-font text with in-word spaces
+  or literal escape codes. Each was fixed and re-checked against the saved
+  answers, with every fabrication test still rejected.
+- **One genuine answer is still withheld**, `SMOKE-05`. Its quote scores 0.74
+  against a bar of 0.85 because the source has lost letters in extraction. Of 37
+  genuine quotes, 36 scored 0.87 or higher; the fabrication tests score 0.55
+  (stitched) and 0.27 (invented). The bar stays at 0.85. A wrongly withheld
+  answer is the safe failure, and the fix belongs in extraction.
+- **The fallback model refuses more.** `SMOKE-13`, `PP-16`, `U-01` and `U-04`
+  were refused by `gemini-3.5-flash-lite` itself, before any check ran.
+
+Re-scored on the saved answers: **31 of 37 match**, against 35 of 37 before.
+The drop is in how often the system answers, not in faithfulness.
+
+**First live test on the primary model (2026-09-24): the check missed
+`PP-01`.** With `gemini-3.1-flash-lite` back, `PP-01` was shown to the student
+again. The model quoted one unbroken span covering item 6.9 ("Primary data and
+Secondary data") and item 6.10 ("Crop Cutting"). That span is genuinely one
+contiguous passage, so the contiguity check passed it. The offline tests had
+only tried quotes that skipped the text between the items, which is why they
+passed while the live case failed.
+
+**Fix: a claim must be stated inside one numbered item.**
+
+- A quote that crosses sibling items (6.9 then 6.10, (१) then (२), क) then ख))
+  is split at them.
+- A claim word the quoted item lacks, but the neighbouring item has, fails the
+  claim outright, however small a share of the claim it is.
+- A flat, stricter share was tried first and withheld two correct answers
+  (`SMOKE-01`, `PP-16`), because common words recur far from the quote.
+- One exception: a quote that includes its own heading, with a claim naming
+  every item under it, is a list ("the second stage is a group test and an
+  interview", `SMOKE-03`).
+- Headings above the quote ("3 Soil Science", "3.1 General Introduction")
+  count as context.
+- Words from the question count as context for the share rule, never for the
+  neighbouring-item rule, because `PP-01`'s own question says "crop cutting".
+- Separately, a false alarm on `PP-16` (a two-letter Nepali stem matching by
+  chance) was fixed.
+
+**Result, primary model, fallback off:**
+
+- **`PP-01` was run live 3 times and withheld all 3.** The model still
+  fabricates; the check now stops it reaching a student.
+- **The full golden set scored 34 of 37 live.** All 37 questions were answered
+  by `gemini-3.1-flash-lite`.
+- **One of the 3 mismatches, `SMOKE-01`, was a false alarm** from the first
+  version of the fix, since corrected. The check is deterministic, so
+  replaying it on that run's saved answers gives the exact result the fixed
+  version would have: **35 of 37**.
+- **The other two, `U-01` and `U-04`, were refused by the model itself.** They
+  are unverified questions and never count toward the gate.
+- **Every answer the run showed was read against its quote by hand, and all
+  are faithful.**
+- **Every form of the `PP-01` answer is withheld:** the live span in Nepali
+  and in English, a quote of 6.9 alone, 6.10 alone, an invented quote, and a
+  wrong item number. True claims about 6.9 and 6.10 on their own are still
+  shown.
+
+**Known limit.** A heading with exactly two items under it, quoted whole, with
+a claim that wrongly relates the two items, still passes. The check cannot
+tell "A and B are listed" from "A is a kind of B" without understanding the
+sentence, and that is a job for the human review queue, not a word check.
 
 ## Operational metrics
 

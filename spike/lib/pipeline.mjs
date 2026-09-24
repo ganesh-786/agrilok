@@ -4,6 +4,7 @@
 import { retrieve } from "./retrieve.mjs";
 import { buildPrompt } from "./prompt.mjs";
 import { generate } from "./gemini.mjs";
+import { checkSupport } from "./support-check.mjs";
 
 /**
  * @param {string} question
@@ -44,6 +45,7 @@ export async function answerQuestion(question, filters = {}) {
       filters,
       refused: true,
       refusalStage: "generation_blocked",
+      model: generation.model,
       refusalReason: `Gemini blocked the response: ${generation.blockReason}`,
       retrievedChunks: results.map(toChunkSummary),
       answer: null,
@@ -69,6 +71,7 @@ export async function answerQuestion(question, filters = {}) {
       filters,
       refused: true,
       refusalStage: "malformed_structured_output",
+      model: generation.model,
       refusalReason: `Model response was not valid JSON: ${err.message}`,
       retrievedChunks: results.map(toChunkSummary),
       answer: generation.text,
@@ -80,15 +83,51 @@ export async function answerQuestion(question, filters = {}) {
   const answerText = typeof parsed.answer === "string" ? parsed.answer : "";
   const citedSourceIds = extractCitations(answerText, results);
 
+  // ADR-0008: before an answer is shown, check that every claim is stated by
+  // one passage of one retrieved chunk. The model saying "sufficient" is not
+  // enough; PP-01 was a confident, cited, wrong answer on this model.
+  if (!modelRefused) {
+    const chunkTextById = new Map(results.map((r) => [r.chunk.chunkId, r.chunk.text]));
+    const metaById = new Map(
+      results.map((r) => [
+        r.chunk.chunkId,
+        [r.chunk.sourceTitle, r.chunk.province, ...(r.chunk.serviceGroups || [])].join(" "),
+      ]),
+    );
+    const support = checkSupport(parsed.claims, chunkTextById, undefined, question, metaById);
+    if (!support.supported) {
+      return {
+        question,
+        filters,
+        refused: true,
+        refusalStage: "support_check_failed",
+        model: generation.model,
+        fallbackFrom: generation.skipped?.length ? generation.skipped : undefined,
+        refusalReason: `The answer was withheld because it is not supported by one passage of a source: ${support.reason}`,
+        retrievedChunks: results.map(toChunkSummary),
+        answer: null,
+        // Kept for a human reviewer, never shown to a student.
+        withheldAnswer: answerText,
+        supportCheck: support.results,
+        citedSourceIds: [],
+      };
+    }
+    parsed.supportCheck = support.results;
+  }
+
   return {
     question,
     filters,
     refused: modelRefused,
+    // Which model produced this, and any that were skipped as overloaded.
+    model: generation.model,
+    fallbackFrom: generation.skipped?.length ? generation.skipped : undefined,
     refusalStage: modelRefused ? "generation_self_refused" : null,
     refusalReason: modelRefused ? "Model determined retrieved sources were insufficient." : null,
     retrievedChunks: results.map(toChunkSummary),
     answer: answerText,
     citedSourceIds,
+    supportCheck: parsed.supportCheck || null,
     // Chunks that were retrieved but never actually cited in the answer;
     // worth a human's attention during faithfulness review; may mean
     // retrieval over-fetched, or the model under-cited.
