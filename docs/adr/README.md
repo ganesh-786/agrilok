@@ -20,6 +20,10 @@ constraint and an accident.
 | [0007](0007-primary-reference-documents-in-the-corpus.md) | Add primary reference documents to the corpus, in stages | Accepted |
 | [0008](0008-generation-model-tier.md) | Choose the generation model tier for live and pre-generated answers | Accepted |
 | [0009](0009-content-review-workflow.md) | The content review workflow, as an actual mechanism | Accepted |
+| [0010](0010-start-phase-1-with-the-level-7-box-open.md) | Start Phase 1 while the Level 7 past-paper box is still open | Accepted |
+| [0011](0011-reference-documents-apply-to-every-level.md) | Reference documents apply to every exam level and province | Proposed |
+| [0012](0012-admission-gate-before-serving.md) | Admit documents by a named person before they can answer | Proposed |
+| [0013](0013-keyword-retrieval-as-a-bm25-term-index.md) | Build the keyword half of hybrid retrieval as a BM25 term index in plain Postgres | Proposed |
 
 ## Writing one
 

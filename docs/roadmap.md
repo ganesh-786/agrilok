@@ -2,11 +2,15 @@
 
 ## Where the project is now
 
-**Phase 0 - validation spike. Not started.**
+**Phase 1 - MVP, started 2026-09-24 with one gate box still open.**
 
-There is no application code. The repository is scaffolding: structure,
-governance, agent context and CI. The gate below has **not** been cleared, and
-production pipeline code does not begin until it is.
+The Phase 0 spike ran, and four of the five gate boxes below are ticked or
+deferred on the record. The Level 7 past-paper box is still open: no real
+Level 7 paper with an official answer key has been found. The owner chose to
+start Phase 1 anyway; that exception, its conditions and what would show it
+was wrong are in
+[ADR-0010](adr/0010-start-phase-1-with-the-level-7-box-open.md). The box
+stays unticked until the paper is in the golden set.
 
 ---
 
