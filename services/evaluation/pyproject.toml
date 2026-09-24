@@ -1,0 +1,32 @@
+[project]
+name = "agrilok-evaluation"
+version = "0.1.0"
+description = "The golden-set harness and the faithfulness gate."
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+license = "MIT"
+dependencies = [
+  "agrilok-core",
+  "pyyaml>=6.0",
+]
+
+[tool.uv.sources]
+agrilok-core = { workspace = true }
+
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/evaluation"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+mypy_path = "src"
+explicit_package_bases = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"

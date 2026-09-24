@@ -1,0 +1,48 @@
+# Shared ruff settings for every Python component (CLAUDE.md: 100 columns,
+# 4-space indent). Ruff finds this file from any subdirectory, so the
+# per-component `ruff check .` in CI picks it up.
+
+line-length = 100
+indent-width = 4
+target-version = "py312"
+
+[lint]
+select = [
+  "E",     # pycodestyle errors
+  "W",     # pycodestyle warnings
+  "F",     # pyflakes
+  "I",     # import sorting
+  "B",     # bugbear
+  "UP",    # pyupgrade
+  "SIM",   # simplify
+  "C4",    # comprehensions
+  "N",     # naming
+  "ASYNC", # blocking calls inside async code
+  "S",     # security (bandit subset)
+  "PT",    # pytest style
+  "RUF",   # ruff-specific
+]
+ignore = [
+  # Devanagari text in strings, comments and docstrings is intended, not a
+  # confusable character slipped in by accident.
+  "RUF001",
+  "RUF002",
+  "RUF003",
+]
+
+[lint.per-file-ignores]
+# Assertions are how pytest tests assert.
+"**/tests/**" = ["S101", "S106"]
+# The system prompt is kept word for word as the golden set measured it;
+# reflowing it to 100 columns would change what the model reads.
+"packages/core/src/agrilok_core/prompt.py" = ["E501"]
+
+[lint.isort]
+known-first-party = [
+  "agrilok_core",
+  "agrilok_api",
+  "agrilok_infra",
+  "ingestion",
+  "evaluation",
+  "crawler",
+]

@@ -128,3 +128,6 @@ logs/
 
 # claude/ is a local-only directory for the Claude LLM. It contains local settings and caches that should not be committed.
 .claude
+
+# --- Local development state (embedded Postgres data, logs) ------------------
+.local/
