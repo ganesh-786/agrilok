@@ -121,7 +121,7 @@ class SearchResults(BaseModel):
 
 
 class AskRequest(BaseModel):
-    question: str = Field(min_length=3, max_length=500)
+    question: str = Field(min_length=3, max_length=1000)
     province: str | None = Field(default=None, max_length=40)
     service_group: str | None = Field(default=None, max_length=60)
     # "Not my question": skip the cache for a fresh answer. Costs a live call.

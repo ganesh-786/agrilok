@@ -53,7 +53,9 @@ from agrilok_core.text import question_key
 log = logging.getLogger(__name__)
 
 MIN_QUESTION_CHARS = 3
-MAX_QUESTION_CHARS = 500
+# Students paste whole MCQs, options included; a real Officer question with its
+# four options ran past 600 characters (U-03).
+MAX_QUESTION_CHARS = 1000
 
 
 class Stage(StrEnum):
