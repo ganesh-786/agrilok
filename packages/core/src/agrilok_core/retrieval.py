@@ -186,6 +186,40 @@ def is_eligible(cand: Candidate, min_score: float, keyword_min_score: float) -> 
     )
 
 
+MAX_KEYWORD_RESCUES = 2
+
+
+def _select(
+    candidates: list[Candidate], top_k: int, min_score: float, keyword_min_score: float
+) -> list[Candidate]:
+    """Choose what the model sees: vector order first, keyword matches only as additions.
+
+    Equal-weight rank fusion was tried first and measured worse: for an
+    English question about the Constitution (golden set U-03), English
+    syllabus headings that merely mention "constitution" won the keyword side
+    and pushed the Nepali Constitution text, the vector side's best match at
+    0.71, out of the top six, and the model then refused. So the measured
+    vector order is kept, and the keyword side may only add up to two
+    exact-term matches that vector search scored below the floor, in the last
+    slots (ADR-0013).
+    """
+    by_vector = sorted(
+        (c for c in candidates if c.similarity is not None and c.similarity >= min_score),
+        key=lambda c: (-(c.similarity or 0.0), c.chunk_id),
+    )
+    chosen = {c.chunk_id for c in by_vector}
+    rescues = sorted(
+        (
+            c
+            for c in candidates
+            if c.chunk_id not in chosen and is_eligible(c, min_score, keyword_min_score)
+        ),
+        key=lambda c: (c.keyword_rank or 0, c.chunk_id),
+    )[:MAX_KEYWORD_RESCUES]
+    slots = max(0, top_k - len(rescues))
+    return [*by_vector[:slots], *rescues][:top_k]
+
+
 async def _load_details(conn: Conn, candidates: Sequence[Candidate]) -> None:
     if not candidates:
         return
@@ -235,15 +269,16 @@ async def retrieve(
         for row in await cur.fetchall():
             candidates[row["id"]].similarity = float(row["similarity"])
 
-    ordered = sorted(candidates.values(), key=lambda c: (-c.fused, c.chunk_id))
+    below: list[Candidate] = []
     if query_vector is None:
         # Keyword-only mode is for the syllabus search page, never for the model.
+        ordered = sorted(candidates.values(), key=lambda c: (-c.fused, c.chunk_id))
         eligible = [c for c in ordered if c.keyword_rank is not None][:top_k]
-        below: list[Candidate] = []
     else:
-        eligible = [c for c in ordered if is_eligible(c, min_score, keyword_min_score)][:top_k]
-        eligible_ids = {c.chunk_id for c in eligible}
-        below = [c for c in ordered if c.chunk_id not in eligible_ids][:top_k]
+        eligible = _select(list(candidates.values()), top_k, min_score, keyword_min_score)
+        chosen = {c.chunk_id for c in eligible}
+        by_similarity = sorted(candidates.values(), key=lambda c: -(c.similarity or 0.0))
+        below = [c for c in by_similarity if c.chunk_id not in chosen][:top_k]
     await _load_details(conn, [*eligible, *below])
     return RetrievalResult(
         results=eligible,

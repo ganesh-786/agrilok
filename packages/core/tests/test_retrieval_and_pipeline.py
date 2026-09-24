@@ -152,6 +152,38 @@ async def test_a_strong_keyword_match_is_rescued_from_a_weak_vector_score(rt: Ru
     assert [c.chunk_id for c in result.results] == ["D-01-000"]
 
 
+async def test_keyword_matches_never_push_out_a_stronger_vector_match(rt: Runtime) -> None:
+    # Golden set U-03: an English question about the Constitution. English
+    # syllabus headings that merely mention "constitution" win the keyword
+    # side; the Nepali Constitution text wins the vector side. The text that
+    # actually answers must still reach the model.
+    near = unit((0, 0.71), (4, math.sqrt(1 - 0.71**2)))
+    heading = unit((0, 0.67), (5, math.sqrt(1 - 0.67**2)))
+    async with rt.pool.connection() as conn:
+        await add_document(conn, "REF", level=None, doc_class="reference", province="federal")
+        await add_chunk(conn, "REF-01-031", "REF", "(१२) कृषि क्षेत्रमा लगानी अभिवृद्धि गर्दै", near)
+        await add_document(conn, "SYL")
+        for i in range(4):
+            await add_chunk(
+                conn,
+                f"SYL-01-00{i}",
+                "SYL",
+                "4.1 Agriculture sector policy in the current constitution",
+                heading,
+                index=i,
+            )
+        result = await retrieve(
+            conn,
+            question="Which constitution policy covers the agriculture sector?",
+            query_vector=SOIL,
+            filters=Filters(level=ExamLevel.LEVEL_7),
+            top_k=3,
+            min_score=0.55,
+            keyword_min_score=0.45,
+        )
+    assert result.results[0].chunk_id == "REF-01-031"
+
+
 # --- the ask pipeline ---------------------------------------------------------------
 
 

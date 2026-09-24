@@ -46,8 +46,8 @@ At ingestion, each chunk's text is normalised with the same building blocks
 the support check uses (consonant skeleton, Nepali suffix stems, ASCII digits)
 into terms stored in a `chunk_terms(chunk_id, term, tf)` table. At query time
 the question goes through the same function and BM25 is computed in SQL.
-Vector and keyword rankings are merged with reciprocal rank fusion. Runs on
-any Postgres and needs no extension beyond `pgvector`.
+The keyword side then adds candidates the vector side missed. Runs on any
+Postgres and needs no extension beyond `pgvector`.
 
 ## Decision
 
@@ -58,9 +58,19 @@ any Postgres and needs no extension beyond `pgvector`.
   which keeps its own word comparison exactly as it was validated on the
   golden set.
 - BM25 uses `k1 = 1.2` and `b = 0.75`, computed over admitted chunks only.
-- Fusion is reciprocal rank fusion with `k = 60`. A chunk is eligible if its
-  vector similarity clears `RETRIEVAL_MIN_SCORE`, or if it is in the keyword
-  top three and clears a lower floor (`RETRIEVAL_KEYWORD_MIN_SCORE`).
+- **The vector order is kept, and keyword matches only add.** Chunks whose
+  vector similarity clears `RETRIEVAL_MIN_SCORE` are ranked by similarity, as
+  the golden-set baseline was measured. The keyword side may add at most two
+  chunks that are in its top three and clear a lower vector floor
+  (`RETRIEVAL_KEYWORD_MIN_SCORE`), in the last slots.
+- **Equal-weight reciprocal rank fusion was tried first and rejected on
+  measurement.** On the golden set it kept smoke and real past-paper results
+  level (13 of 13, 20 of 20) but lost `U-03`: for an English question about
+  the Constitution, English syllabus headings that merely mention
+  "constitution" won the keyword side and pushed the Nepali Constitution
+  text, the vector side's best match at 0.71, out of the top six, and the
+  model refused. Keyword matching across scripts is exactly where fusion
+  hurts, and this corpus is mostly cross-script. A regression test pins it.
 - The golden set is run before and after, and both numbers go in the PR, as
   [docs/rag-pipeline.md](../rag-pipeline.md) requires for any retrieval change.
 
