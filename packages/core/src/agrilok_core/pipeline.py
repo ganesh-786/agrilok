@@ -120,8 +120,25 @@ class AskResult:
     detail: str | None = None
 
 
+def without_nul(value: Any) -> Any:
+    """Remove NUL characters from every string in a parsed model response.
+
+    Copying damaged Devanagari, the model sometimes emits U+0000 inside a
+    quote (seen on SMOKE-03 in the spike). Postgres cannot store NUL in text
+    or JSONB, so an answer carrying one failed to save. NUL never carries
+    meaning in these documents, so it is dropped before anything else runs.
+    """
+    if isinstance(value, str):
+        return value.replace("\x00", "")
+    if isinstance(value, list):
+        return [without_nul(v) for v in value]
+    if isinstance(value, dict):
+        return {k: without_nul(v) for k, v in value.items()}
+    return value
+
+
 def clean_question(question: str) -> str:
-    cleaned = " ".join(str(question).split())
+    cleaned = " ".join(str(question).replace("\x00", "").split())
     if len(cleaned) < MIN_QUESTION_CHARS:
         raise InvalidQuestionError("question is too short")
     if len(cleaned) > MAX_QUESTION_CHARS:
@@ -418,7 +435,7 @@ async def ask(
         return await _finish(runtime, result, qhash, query_vector, revision, origin, {}, store)
 
     try:
-        parsed = json.loads(generation.text or "")
+        parsed = without_nul(json.loads(generation.text or ""))
         if not isinstance(parsed, dict):
             raise TypeError("not an object")
     except (json.JSONDecodeError, TypeError) as exc:

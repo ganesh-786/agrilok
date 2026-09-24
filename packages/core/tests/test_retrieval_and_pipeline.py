@@ -403,3 +403,34 @@ async def test_a_cached_answer_dies_when_its_source_changes(
 
     assert not after_change.cache.hit
     assert fake.calls["generate"] == 2
+
+
+async def test_nul_characters_in_a_models_quote_do_not_break_storage(
+    rt: Runtime, fake: FakeGemini, excerpts: dict[str, str]
+) -> None:
+    # Copying damaged Devanagari, the model sometimes writes U+0000 inside a
+    # quote. Postgres rejects NUL in text and JSONB, so saving used to crash.
+    question = "How many marks is the written examination?"
+    async with rt.pool.connection() as conn:
+        await add_document(conn, "LUM-01")
+        await add_chunk(conn, "LUM-01-000", "LUM-01", excerpts["LUM-01-000"], SOIL)
+    fake.embeddings[question] = SOIL
+    fake.generations.append(
+        generation_response(
+            {
+                "sufficient": True,
+                "answer": "The written examination carries 200 marks [LUM-01-000].",
+                "claims": [
+                    {
+                        "claim": "The written examination carries 200 marks.",
+                        "source_id": "LUM-01-000",
+                        "quote": "नलम्खत परीक्षा (Written Examination) प\x00ू\x00णागङ्क :- 200",
+                    }
+                ],
+            }
+        )
+    )
+    result = await ask(rt, question=question, level=ExamLevel.LEVEL_7)
+    assert result.status == "answered"
+    assert result.answer_id is not None
+    assert all("\x00" not in q for q in result.citations[0]["quotes"])
