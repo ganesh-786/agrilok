@@ -44,7 +44,7 @@ evidence.
       Agriculture Extension, corroborated against a live PSC exam-result
       notice - see [docs/evaluation.md](evaluation.md#phase-0) for exactly
       what that corroboration does and does not establish) for the first
-      time. 18 of 20 correctly refuse, and one answer is confirmed faithful.
+      time. 17 of 20 correctly refuse, and one answer is confirmed faithful.
       **One, `PP-01`, is a confirmed fabrication**: a wrong answer built by
       combining two unrelated adjacent syllabus headings, cited as if they
       supported it, checked against the real exam's own marked correct
@@ -57,11 +57,16 @@ evidence.
       both of which correctly refused. Per [CLAUDE.md](../CLAUDE.md),
       faithfulness never regresses - a drop is a blocking bug, not a
       trade-off, and hitting the count of questions the gate names does not
-      override a confirmed failure sitting inside that count. Still needed: a
-      real Level 7 past paper (this batch is Level 4 only) and a named
-      decision on generation model tier
-      ([ADR-0008](adr/0008-generation-model-tier.md), Proposed) before this
-      box is checked. Two compiled Officer-level MCQ sets (about 100
+      override a confirmed failure sitting inside that count.
+      **`PP-01` resolved (2026-09-24).** The model tier was decided in
+      [ADR-0008](adr/0008-generation-model-tier.md) (Accepted), which added a
+      support check before any answer is shown. Live on
+      `gemini-3.1-flash-lite`, `PP-01` was withheld 3 of 3, and the golden
+      set scored 35 of 37 with every shown answer hand-checked as faithful;
+      see [docs/evaluation.md](evaluation.md#the-support-check-and-model-fallback-adr-0008).
+      The model still fabricates it; the check stops it reaching a student.
+      **Still needed: a real Level 7 past paper** (this batch is Level 4
+      only) before this box is checked. Two compiled Officer-level MCQ sets (about 100
       questions) were reviewed and do **not** meet the bar for a real
       past-paper entry: one is a coaching institute's retyped set whose
       claimed federal sitting could not be corroborated, the other has no
@@ -80,6 +85,14 @@ evidence.
       2016. PSC's course list is rendered by JavaScript and cannot be read by
       search, so a person has to browse it for anything dated after
       2082/07/20.
+      **Rechecked 2026-09-24, still not confirmed.** The two syllabus links
+      put forward for this box are byte-identical to files already in the
+      corpus: Lumbini's Level 7 syllabus (`LUM-01`, file dated 2024-04-03)
+      and the federal Agri Econ and Marketing Paper II (`FED-10`, created
+      2025-11-12). That shows both files are unchanged at their official
+      URLs since first fetched. It does not show that no newer syllabus has
+      been published; that still needs the latest notice on each
+      commission's course list.
 - [ ] Free-tier capacity math redone with **real pilot numbers** once a waitlist
       exists. A back-of-envelope estimate is not a plan.
       **Partial, real data, not yet a plan.** The live AI Studio quota
@@ -94,6 +107,9 @@ evidence.
       [docs/evaluation.md](evaluation.md#phase-0),
       [docs/free-tier-budget.md](free-tier-budget.md) and
       [ADR-0008](adr/0008-generation-model-tier.md).
+      **Deferred by the project owner (2026-09-24).** The owner chose not to
+      block on a pilot and to revisit capacity if limits cause problems. The
+      box stays unticked: the risk is accepted knowingly, not resolved.
 - [x] Content review workflow **decided before the crawler goes live**.
       Publishing unreviewed scraped content straight to students defeats the
       entire trust premise of the project.
@@ -102,14 +118,14 @@ evidence.
       scanned text can enter review, and self-review recorded as self-review
       while there is one reviewer. The tooling that opens review items does not
       exist yet; that is Phase 1 work.
-- [ ] **One person named** as owner of the trusted-source whitelist, so it
+- [x] **One person named** as owner of the trusted-source whitelist, so it
       cannot silently grow to include unreliable sites.
-      **Evidence exists; box left for the owner to tick.** @ganesh-786 is
-      named as the single whitelist owner in `data/sources/whitelist.yml` and
-      in [docs/data-governance.md](data-governance.md#roles). The first
-      vetting round (`moald.gov.np`, `lawcommission.gov.np`, `narc.gov.np`)
-      returned three "needs a human decision" verdicts, now waiting on that
-      owner; see [ADR-0007](adr/0007-primary-reference-documents-in-the-corpus.md).
+      **Confirmed by the owner 2026-09-24.** @ganesh-786 is named as the
+      single whitelist owner in `data/sources/whitelist.yml` and in
+      [docs/data-governance.md](data-governance.md#roles), and approved the
+      first three sources (`moald.gov.np`, `lawcommission.gov.np`,
+      `narc.gov.np`) on 2026-09-23; see
+      [ADR-0007](adr/0007-primary-reference-documents-in-the-corpus.md).
 
 Check the current state with `/gate`.
 
