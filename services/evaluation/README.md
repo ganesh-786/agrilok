@@ -1,8 +1,8 @@
 # services/evaluation - the golden-set harness
 
-> **Status: not implemented.** Phase 1. Until it exists, faithfulness is checked
-> **by hand** against at least 20 real past-paper questions, as the Phase 0 gate
-> requires.
+> **Status: Phase 1 MVP.** The harness runs the golden set through the same
+> pipeline students use and gates on what a machine can check. Faithfulness of
+> answered rows is still judged **by hand**.
 
 Measures whether the system is actually right, rather than whether it feels
 right. Full policy: [evaluation.md](../../docs/evaluation.md) and
@@ -22,8 +22,12 @@ right. Full policy: [evaluation.md](../../docs/evaluation.md) and
 **Faithfulness is a hard floor.** A drop is a blocking bug, not a trade-off.
 Relevancy and latency may be traded; faithfulness may not.
 
-Thresholds come from the first full baseline run in Phase 1. No threshold is
-stated before then, because a number invented in advance is not a measurement.
+The recorded baseline is [`data/golden-set/baseline.json`](../../data/golden-set/baseline.json):
+13 pipeline smoke tests and 20 real past-paper questions matched. The gate
+fails a run that answers a question it must refuse, lets an injected
+instruction into an answer, matches fewer gated questions than the baseline,
+or errors on any gated question. A green gate means nothing regressed that a
+machine can see, not that the answers are faithful.
 
 ## Rules
 
@@ -40,3 +44,19 @@ stated before then, because a number invented in advance is not a measurement.
   generation.
 
 `reports/` is gitignored; CI uploads runs as artifacts.
+
+## Running it
+
+```sh
+uv run python -m evaluation.run --report services/evaluation/reports/summary.json \
+    --markdown services/evaluation/reports/summary.md
+uv run python -m evaluation.gate --report services/evaluation/reports/summary.json
+```
+
+A run needs an admitted, embedded corpus and a Gemini key. Every question
+goes through `agrilok_core.pipeline.ask` with the cache off and nothing
+stored, so it measures the pipeline, not yesterday's answers. The Markdown
+report has a line under each answered row for the person who reads the
+cited source and records whether the answer follows from it.
+
+The questions are in [`data/golden-set/questions.yaml`](../../data/golden-set/questions.yaml).
