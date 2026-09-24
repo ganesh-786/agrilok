@@ -72,7 +72,7 @@ evidence.
       claimed federal sitting could not be corroborated, the other has no
       source at all and an answer key that contradicts its own note. They
       are kept in a separate unverified tier that is never counted here.
-- [ ] Current, **in-force** syllabus PDFs confirmed for both levels - verified
+- [x] Current, **in-force** syllabus PDFs confirmed for both levels - verified
       against the freshest official notice, not a third-party blog or summary.
       Syllabi get revised; anything cited during research needs a fresh check.
       **Not confirmed, one new piece of evidence.** The most recent federal
@@ -93,6 +93,18 @@ evidence.
       URLs since first fetched. It does not show that no newer syllabus has
       been published; that still needs the latest notice on each
       commission's course list.
+      **Confirmed by the project owner 2026-09-24.** @ganesh-786 browsed the
+      full syllabus lists on ppsc.lumbini.gov.np and psc.gov.np and
+      confirmed that, for agriculture, nothing is newer than the files in
+      the corpus. Six links from that check were fetched the same day: four
+      (`FED-10`, `LUM-01`, `LUM-02`, `LUM-04`) are byte-identical to the
+      corpus copies, so none has been revised since first fetched. Two are
+      Lumbini Level 7 groups not yet in the corpus, Fisheries and Food,
+      Nutrition and Quality Control (both files from 2021). They are typed
+      in a legacy Preeti font that extracts as unreadable text, so adding
+      them needs a font conversion step first; that is corpus work, not a
+      gate item. This box rests on one person's check of two lists, which
+      is what it asks for, and should be redone before each exam season.
 - [ ] Free-tier capacity math redone with **real pilot numbers** once a waitlist
       exists. A back-of-envelope estimate is not a plan.
       **Partial, real data, not yet a plan.** The live AI Studio quota
