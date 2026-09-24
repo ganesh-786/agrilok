@@ -32,6 +32,7 @@ from psycopg.types.json import Jsonb
 
 from agrilok_core import cache, quota
 from agrilok_core.citations import InventedCitationError, number_citations, truncate_on_word
+from agrilok_core.dates import nepal_date
 from agrilok_core.db import Conn, l2_normalize, vector_literal
 from agrilok_core.gemini import GeminiError, GeminiNotConfiguredError
 from agrilok_core.levels import ExamLevel, ReviewState
@@ -170,7 +171,7 @@ def _source_for_prompt(cand: Candidate) -> SourceForPrompt:
         province=str(d.get("province", "")),
         service_groups=list(d.get("service_groups") or []),
         url=str(d.get("resolvable_url", "")),
-        fetched_on=fetched.date().isoformat() if fetched else "",
+        fetched_on=str(nepal_date(fetched) or ""),
         score=cand.similarity or 0.0,
         text=cand.text,
     )
@@ -178,7 +179,7 @@ def _source_for_prompt(cand: Candidate) -> SourceForPrompt:
 
 def _citation(n: int, cand: Candidate, quotes: list[str]) -> dict[str, Any]:
     d = cand.details
-    fetched = cand.fetched_at
+    fetched = nepal_date(cand.fetched_at)
     return {
         "n": n,
         "chunk_id": cand.chunk_id,
@@ -193,7 +194,7 @@ def _citation(n: int, cand: Candidate, quotes: list[str]) -> dict[str, Any]:
         "quotes": quotes,
         "resolvable_url": d.get("resolvable_url"),
         "source_url": d.get("source_url"),
-        "fetched_at": fetched.date().isoformat() if fetched else None,
+        "fetched_at": fetched.isoformat() if fetched else None,
         "review_state": d.get("chunk_review_state", ReviewState.PENDING.value),
     }
 
