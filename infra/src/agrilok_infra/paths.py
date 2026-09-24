@@ -7,8 +7,19 @@ from pathlib import Path
 
 # infra/src/agrilok_infra/paths.py -> repository root is four levels up.
 REPO_ROOT = Path(__file__).resolve().parents[3]
-MIGRATIONS_DIR = REPO_ROOT / "infra" / "migrations"
-SEED_DIR = REPO_ROOT / "infra" / "seed"
+_PACKAGE_DIR = Path(__file__).resolve().parent
+
+
+def _bundled_or_repo(name: str) -> Path:
+    # A built wheel carries the SQL inside the package (see pyproject.toml,
+    # force-include), because an installed package cannot see the repository.
+    # A development checkout reads it from infra/ directly.
+    bundled = _PACKAGE_DIR / name
+    return bundled if bundled.is_dir() else REPO_ROOT / "infra" / name
+
+
+MIGRATIONS_DIR = _bundled_or_repo("migrations")
+SEED_DIR = _bundled_or_repo("seed")
 LOCAL_DIR = REPO_ROOT / ".local"
 
 LOCAL_PORT = 54329

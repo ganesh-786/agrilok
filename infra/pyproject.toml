@@ -25,6 +25,11 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["src/agrilok_infra"]
 
+[tool.hatch.build.targets.wheel.force-include]
+# Ship the SQL inside the wheel so `agrilok-db migrate` works from a container.
+"migrations" = "agrilok_infra/migrations"
+"seed" = "agrilok_infra/seed"
+
 [tool.mypy]
 python_version = "3.12"
 strict = true
