@@ -28,15 +28,22 @@ _LOCAL_ADMIN = f"postgresql://postgres@127.0.0.1:{LOCAL_PORT}/postgres"
 
 
 def admin_url() -> str | None:
-    """A reachable server to create test databases on, or None."""
-    candidates = [os.environ[ENV_VAR]] if os.environ.get(ENV_VAR) else [_LOCAL_ADMIN]
-    for url in candidates:
-        try:
-            with psycopg.connect(url, connect_timeout=3):
-                return url
-        except psycopg.OperationalError:
-            continue
-    return None
+    """A reachable server to create test databases on, or None.
+
+    None only when nothing was asked for and the local server is not running.
+    If AGRILOK_TEST_DATABASE_URL is set but unreachable this raises instead: a
+    CI run whose database never came up must fail, not pass with every
+    database test skipped.
+    """
+    explicit = os.environ.get(ENV_VAR)
+    url = explicit or _LOCAL_ADMIN
+    try:
+        with psycopg.connect(url, connect_timeout=3):
+            return url
+    except psycopg.OperationalError as exc:
+        if explicit:
+            raise RuntimeError(f"{ENV_VAR} is set but the server is unreachable") from exc
+        return None
 
 
 def _with_database(url: str, database: str) -> str:
