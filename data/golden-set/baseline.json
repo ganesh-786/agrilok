@@ -1,0 +1,9 @@
+{
+  "recorded_on": "2026-09-24",
+  "source": "Phase 0 spike, final support check, gemini-3.1-flash-lite, vector-only retrieval. 35 of 37 overall; every shown answer checked by hand. See docs/evaluation.md.",
+  "matched_by_tier": {
+    "pipeline_smoke_test": 13,
+    "real_past_paper": 20
+  },
+  "rule": "Raise a number when a run does better and its answered rows have been checked by hand. Never lower one to make a run pass: a drop in faithfulness is a blocking bug (CLAUDE.md rule 9)."
+}
