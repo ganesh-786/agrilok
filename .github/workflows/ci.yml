@@ -15,45 +15,9 @@ concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-env:
-  NODE_VERSION: "20.18"
-  PYTHON_VERSION: "3.12"
-
 jobs:
   # ---------------------------------------------------------------------------
-  # Which components actually exist yet? The repo is scaffolded ahead of the
-  # code, so every build job is gated on its component being present. This keeps
-  # CI green and honest instead of red and ignored.
-  # ---------------------------------------------------------------------------
-  detect:
-    name: Detect components
-    runs-on: ubuntu-latest
-    outputs:
-      web: ${{ steps.check.outputs.web }}
-      python: ${{ steps.check.outputs.python }}
-    steps:
-      - uses: actions/checkout@v4
-
-      - id: check
-        shell: bash
-        run: |
-          if [ -f apps/web/package.json ]; then
-            echo "web=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "web=false" >> "$GITHUB_OUTPUT"
-            echo "::notice::apps/web has no package.json yet - skipping web job."
-          fi
-
-          if ls apps/api/pyproject.toml services/*/pyproject.toml >/dev/null 2>&1; then
-            echo "python=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "python=false" >> "$GITHUB_OUTPUT"
-            echo "::notice::No Python project files yet - skipping python job."
-          fi
-
-  # ---------------------------------------------------------------------------
-  # Runs on every change, including today when there is no application code.
-  # These are the invariants that protect students and secrets.
+  # The invariants that protect students and secrets. Cheap, and first.
   # ---------------------------------------------------------------------------
   hygiene:
     name: Repository hygiene
@@ -111,15 +75,14 @@ jobs:
           set -euo pipefail
           python -m pip install --quiet pyyaml
           python - <<'PY'
-          import json, pathlib, sys
+          import json, pathlib, subprocess, sys
           import yaml
 
+          # Tracked files only: build output and dependencies are not ours to check.
+          files = subprocess.run(["git", "ls-files"], capture_output=True, text=True, check=True)
           failed = False
-          skip = {".git", "node_modules", ".venv"}
-
-          for path in pathlib.Path(".").rglob("*"):
-              if any(part in skip for part in path.parts) or not path.is_file():
-                  continue
+          for name in files.stdout.splitlines():
+              path = pathlib.Path(name)
               try:
                   if path.suffix in {".yml", ".yaml"}:
                       yaml.safe_load(path.read_text(encoding="utf-8"))
@@ -133,73 +96,90 @@ jobs:
           PY
 
   web:
-    name: Web (lint, typecheck, build)
-    needs: detect
-    if: needs.detect.outputs.web == 'true'
+    name: Web (lint, typecheck, test, build)
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: apps/web
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
-          node-version: ${{ env.NODE_VERSION }}
+          node-version-file: .nvmrc
           cache: npm
           cache-dependency-path: apps/web/package-lock.json
 
       - run: npm ci
-      - run: npm run lint --if-present
-      - run: npm run typecheck --if-present
-      - run: npm test --if-present
-      - run: npm run build --if-present
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run format:check
+      # No API is running here. Every page renders on request, and the
+      # sitemap falls back to the fixed pages, so the build must still pass.
+      - run: npm run build
 
   python:
-    name: Python (lint, typecheck, test)
-    needs: detect
-    if: needs.detect.outputs.python == 'true'
+    name: Python (${{ matrix.component }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        component: [apps/api, services/crawler, services/ingestion, services/evaluation]
+        component:
+          - packages/core
+          - apps/api
+          - infra
+          - services/ingestion
+          - services/evaluation
+          - services/crawler
+    services:
+      # The same Postgres and pgvector versions the local `agrilok-db start` runs.
+      postgres:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      # Set, so a database that never came up fails the run instead of every
+      # database test quietly skipping (infra/src/agrilok_infra/testing.py).
+      AGRILOK_TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
+      # Tests use a fake Gemini client. No key here proves none of them can
+      # reach the real API or spend quota.
+      GEMINI_API_KEY: ""
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
+      - uses: astral-sh/setup-uv@v6
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
-          cache: pip
+          version: "0.12.10"
+          enable-cache: true
+          cache-dependency-glob: uv.lock
 
-      - name: Skip components that do not exist yet
-        id: exists
-        shell: bash
+      # One lockfile for the workspace. `--frozen` fails if uv.lock is stale
+      # rather than quietly resolving something new. The `local` extra
+      # (embedded Postgres) is left out: the service container replaces it.
+      - name: Install the workspace
         run: |
-          if [ -f "${{ matrix.component }}/pyproject.toml" ]; then
-            echo "run=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "run=false" >> "$GITHUB_OUTPUT"
-          fi
+          uv python install
+          uv sync --frozen --all-packages --extra observability
+          echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
 
-      - if: steps.exists.outputs.run == 'true'
-        working-directory: ${{ matrix.component }}
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e ".[dev]"
-
-      - if: steps.exists.outputs.run == 'true'
-        working-directory: ${{ matrix.component }}
+      - working-directory: ${{ matrix.component }}
         run: ruff check .
 
-      - if: steps.exists.outputs.run == 'true'
-        working-directory: ${{ matrix.component }}
+      - working-directory: ${{ matrix.component }}
         run: ruff format --check .
 
-      - if: steps.exists.outputs.run == 'true'
-        working-directory: ${{ matrix.component }}
+      - working-directory: ${{ matrix.component }}
         run: mypy .
 
-      - if: steps.exists.outputs.run == 'true'
-        working-directory: ${{ matrix.component }}
-        run: pytest -q
+      - working-directory: ${{ matrix.component }}
+        run: pytest -q -rs
