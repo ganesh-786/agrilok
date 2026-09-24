@@ -31,7 +31,7 @@ from typing import Any
 from psycopg.types.json import Jsonb
 
 from agrilok_core import cache, quota
-from agrilok_core.citations import InventedCitationError, number_citations, truncate_on_word
+from agrilok_core.citations import InventedCitationError, display_quote, number_citations
 from agrilok_core.dates import nepal_date
 from agrilok_core.db import Conn, l2_normalize, vector_literal
 from agrilok_core.gemini import GeminiError, GeminiNotConfiguredError
@@ -493,7 +493,7 @@ async def ask(
     for claim_result in support.results:
         if claim_result.ok and claim_result.quote.strip():
             quotes = quotes_by_chunk.setdefault(claim_result.source_id, [])
-            short = truncate_on_word(claim_result.quote)
+            short = display_quote(claim_result.quote)
             if short not in quotes:
                 quotes.append(short)
     result.status = "answered"

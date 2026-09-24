@@ -13,6 +13,8 @@ import unicodedata
 from collections.abc import Collection
 from dataclasses import dataclass
 
+from agrilok_core.text import decode_escapes
+
 _BRACKET = re.compile(r"\[([^\[\]\n]{1,200})\]")
 # Chunk ids look like "LUM-01-005" or "REF-04-031".
 _CHUNK_ID = re.compile(r"^[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*-[0-9]{3}$")
@@ -70,7 +72,31 @@ def truncate_on_word(text: str, limit: int = 300) -> str:
         # (before a vowel sign or other mark, or right after a virama).
         cut = limit
         while cut > 1 and (
-            unicodedata.category(clean[cut]).startswith("M") or clean[cut - 1] == "्"
+            unicodedata.category(clean[cut]).startswith("M") or clean[cut - 1] == "\u094d"
         ):
             cut -= 1
     return clean[:cut].rstrip(" ,;:") + " …"
+
+
+_LITERAL_ESCAPE = re.compile(r"\\[nrt]")
+# A Devanagari vowel sign, virama or other combining mark with whitespace in
+# front of it. No word starts with one, so the space is always extraction
+# damage, and left in place it renders as a dotted circle.
+_DETACHED_MARK = re.compile(
+    r"\s+([\u0900-\u0903\u093a-\u093c\u093e-\u094f\u0951-\u0957\u0962\u0963])"
+)
+
+
+def display_quote(text: str, limit: int = 300) -> str:
+    """A quote as a student should read it.
+
+    Copying damaged text into JSON, the model sometimes double-escapes a line
+    break, so it arrives as a visible backslash and the letter n, and it leaves
+    stray backslashes. Those become spaces here, and a vowel sign that the PDF
+    extraction split from its letter is joined back on. Only the displayed copy
+    is cleaned; the support check always sees the quote exactly as the model
+    gave it.
+    """
+    cleaned = _LITERAL_ESCAPE.sub(" ", decode_escapes(text)).replace("\\", " ")
+    cleaned = _DETACHED_MARK.sub(r"\1", cleaned)
+    return truncate_on_word(cleaned, limit)

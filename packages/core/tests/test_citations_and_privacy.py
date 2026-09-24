@@ -65,3 +65,25 @@ def test_a_source_cannot_close_its_own_fence() -> None:
     assert prompt.count("</source>") == 1
     assert prompt.count("<source ") == 1
     assert 'level="7"' in prompt
+
+
+def test_displayed_quotes_lose_escape_debris_but_keep_their_words() -> None:
+    from agrilok_core.citations import display_quote
+
+    backslash = chr(92)
+    raw = f"प{backslash}nू{backslash}nणागङ्क :- 10{backslash}nख) Interview {backslash} 30"
+    shown = display_quote(raw)
+    assert backslash not in shown
+    assert "Interview" in shown
+    assert "30" in shown
+    assert display_quote("Group [nrt] test") == "Group [nrt] test"
+
+
+def test_displayed_quotes_join_a_split_vowel_sign_back_to_its_letter() -> None:
+    from agrilok_core.citations import display_quote
+
+    # "पूर्णाङ्क" as the extraction left it: the ू split off by a line break.
+    assert display_quote("प\nूर्णाङ्क २५") == "पूर्णाङ्क २५"
+    assert display_quote("प ूर्णाङ्क") == "पूर्णाङ्क"
+    # Separate words stay separate.
+    assert display_quote("कृषि प्रसार") == "कृषि प्रसार"
