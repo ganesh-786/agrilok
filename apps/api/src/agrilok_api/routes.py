@@ -27,6 +27,7 @@ from agrilok_api.schemas import (
     Status,
 )
 from agrilok_core import quota
+from agrilok_core.citations import display_quote
 from agrilok_core.dates import nepal_date
 from agrilok_core.levels import ExamLevel
 from agrilok_core.pipeline import AskResult, InvalidQuestionError, Stage, ask, get_answer
@@ -237,7 +238,8 @@ def to_response(result: AskResult) -> AskResponse:
             exam_level=c.get("exam_level"),
             province=c.get("province"),
             section_heading=c.get("section_heading"),
-            quotes=list(c.get("quotes") or []),
+            # Cleaned again here so answers cached before the cleanup read well too.
+            quotes=[display_quote(q) for q in c.get("quotes") or []],
             resolvable_url=c.get("resolvable_url") or "",
             source_url=c.get("source_url"),
             fetched_on=_to_date(c.get("fetched_at")),
