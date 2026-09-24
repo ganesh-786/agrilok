@@ -51,7 +51,8 @@ def configure_logging(settings: Settings) -> None:
 
 
 def init_sentry(settings: Settings) -> bool:
-    if settings.sentry_dsn is None:
+    # `SENTRY_DSN=` copied from .env.example arrives as an empty string, not None.
+    if settings.sentry_dsn is None or not settings.sentry_dsn.get_secret_value().strip():
         return False
     try:
         import sentry_sdk
