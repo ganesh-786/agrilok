@@ -18,6 +18,13 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   // A self-contained server bundle for the Dockerfile.
   output: "standalone",
+  // The file tracer copies sharp's native addon but, on Windows, not the
+  // libvips library it loads, so resizing fails and every thumbnail is sent
+  // as the full-size original (500 KB for a 160px image). Include sharp's
+  // platform packages whole, whatever the build machine.
+  outputFileTracingIncludes: {
+    "/*": ["./node_modules/@img/**/*"],
+  },
   images: {
     // AVIF first: the smallest files for the phones on slow connections this
     // is built for. Widths stop at 1280 because no photo here needs more.
