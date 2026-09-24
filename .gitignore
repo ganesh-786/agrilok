@@ -131,3 +131,7 @@ logs/
 
 # --- Local development state (embedded Postgres data, logs) ------------------
 .local/
+
+# --- Crawl reports (uploaded as CI artifacts, never committed) ---------------
+services/crawler/reports/**
+!services/crawler/reports/.gitkeep
