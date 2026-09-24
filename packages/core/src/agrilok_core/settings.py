@@ -1,7 +1,7 @@
 """Configuration, read once from the environment and the repository .env.
 
 Every secret is a SecretStr so it cannot end up in a log line or an error
-report by accident (CLAUDE.md rule 6). Nothing here is ever sent to the
+report by accident (CONTRIBUTING.md ground rule 5). Nothing here is ever sent to the
 browser; the web app has its own, public-only configuration.
 """
 

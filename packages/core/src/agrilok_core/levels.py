@@ -11,7 +11,7 @@ class ExamLevel(StrEnum):
 
 
 class ReviewState(StrEnum):
-    """Exactly two states (CLAUDE.md rule 2). Do not add a third."""
+    """Exactly two states (CONTRIBUTING.md ground rule 2). Do not add a third."""
 
     VERIFIED = "verified"
     PENDING = "ai_assisted_pending_review"

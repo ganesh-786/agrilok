@@ -1,4 +1,4 @@
-"""Keep personal data out of the model (CLAUDE.md rule 7, docs/privacy.md).
+"""Keep personal data out of the model (CONTRIBUTING.md ground rule 6, docs/privacy.md).
 
 Free-tier Gemini content may be used by the provider and read by human
 reviewers. A question that carries an email address or a phone number is

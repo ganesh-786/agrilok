@@ -4,7 +4,7 @@ Filters are hard, and they are in the SQL, not applied afterwards:
 
 - only admitted, not superseded documents (ADR-0012);
 - syllabus chunks must match the exam level exactly; Level 4 and Level 7
-  never mix (CLAUDE.md rule 3);
+  never mix (CONTRIBUTING.md ground rule 4);
 - reference documents (Acts, the Constitution) apply to every level, province
   and group (ADR-0011);
 - province and service group, when given, filter syllabus chunks strictly.

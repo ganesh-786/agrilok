@@ -22,7 +22,7 @@ class LevelLabel(Label):
 
 
 class Review(BaseModel):
-    """Exactly two states, always shown (CLAUDE.md rule 2)."""
+    """Exactly two states, always shown (CONTRIBUTING.md ground rule 2)."""
 
     state: ReviewStateValue
     reviewed_by: str | None = None
