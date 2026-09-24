@@ -16,6 +16,9 @@
 // items. A check that only asks "are the claim's words somewhere in the chunk"
 // passes it. Requiring one passage that states the whole claim does not.
 //
+// A quote that runs across two sibling numbered items (6.9 then 6.10) is
+// split at them, and the claim must be stated inside one item. See MARKER.
+//
 // Known limits, measured against the golden set rather than assumed away:
 // a claim in English over a Nepali quote cannot be word-checked (only the
 // quote and its numbers are), so a mistranslated label can still pass.
@@ -85,7 +88,9 @@ function keyTerms(text) {
     if (!raw || /^\d/.test(raw)) continue;
     const isDevanagari = /[ऀ-ॿ]/.test(raw);
     if (isDevanagari) {
-      if (raw.length < 2 || NE_STOPWORDS.has(raw)) continue;
+      // A stem under 3 consonants ("जव") matches unrelated words by chance;
+      // on a live run it flagged a correct PP-16 answer as borrowing words.
+      if (stem(raw).length < 3 || NE_STOPWORDS.has(raw)) continue;
     } else if (raw.length < 4 || EN_STOPWORDS.has(raw)) {
       continue;
     }
@@ -157,7 +162,9 @@ function termPresent(t, text) {
     const fg = plainTrigrams(flat);
     let hit = 0;
     for (const g of tg) if (fg.has(g)) hit++;
-    return hit / tg.size >= 0.67;
+    // 0.66, not 0.67: a damaged word that keeps two of its three trigrams
+    // scores 0.667 and must count (PP-16, "बायोग्यासको" extracted without ब).
+    return hit / tg.size >= 0.66;
   }
   const words = text.split(" ");
   const bare = t.term.replace(/s$/, "");
@@ -167,6 +174,117 @@ function termPresent(t, text) {
 // How far above the quoted passage a heading number may sit (characters of
 // normalised text).
 const HEADING_WINDOW = 600;
+
+// --- Numbered items -----------------------------------------------------
+// Syllabi and Acts are lists of numbered items: 6.9, 6.10 / (१), (२) / क), ख).
+// Two items at the same level are siblings, and being next to each other does
+// not connect them. On a live run PP-01 quoted "6.9 ... Secondary data" and
+// "6.10 Crop Cutting" as one unbroken passage, so a contiguity check passed a
+// claim neither item makes. Siblings are now split apart, and a claim must be
+// stated inside one of them.
+const MARKER = /(?<![\d.])(\d+(?:\.\d+)*)\.(?=\s)|(?<![\d.])(\d+(?:\.\d+)+)(?=\s)|\((\d+)\)|\(([क-ह])\)|(?<=^|\s)([क-ह])\)/g;
+
+function markersIn(rawText) {
+  const out = [];
+  const text = toAsciiDigits(rawText);
+  for (const m of text.matchAll(MARKER)) {
+    const dotted = m[1] ?? m[2];
+    let key;
+    let label;
+    if (dotted) {
+      const parts = dotted.split(".");
+      key = `n${parts.length}:${parts.slice(0, -1).join(".")}`;
+      label = dotted;
+    } else if (m[3]) {
+      key = "p";
+      label = `(${m[3]})`;
+    } else if (m[4]) {
+      key = "pl";
+      label = `(${m[4]})`;
+    } else {
+      key = "l";
+      label = `${m[5]})`;
+    }
+    out.push({ index: m.index, key, label, dotted: dotted ?? null });
+  }
+  return out;
+}
+
+// Splits a quote at sibling items. Returns [whole] when there are none, else
+// one string per sibling, each prefixed with any text before the first
+// sibling (a parent heading the quote itself included).
+function siblingSegments(rawQuote) {
+  const marks = markersIn(rawQuote);
+  const counts = {};
+  for (const m of marks) counts[m.key] = (counts[m.key] || 0) + 1;
+  const splits = marks.filter((m) => counts[m.key] >= 2).map((m) => m.index);
+  if (splits.length < 2) return { segments: [rawQuote], items: [], preamble: "", siblings: false };
+  const text = toAsciiDigits(rawQuote);
+  const preamble = text.slice(0, splits[0]);
+  const items = splits.map((start, i) => text.slice(start, splits[i + 1] ?? text.length));
+  const segments = items.map((item) => preamble + " " + item);
+  return { segments, items, preamble, siblings: true };
+}
+
+// The headings above the quote's first item, looked up in the source: "3.1"
+// and "3" above "3.1.1", "6" above "6.10", or the article ("36.") above a
+// clause "(३)". A claim may restate them ("the General Introduction of Soil
+// Science", "Article 36") without that counting as borrowed words. All
+// ancestors, not just the parent: SMOKE-01 names heading 3 while quoting 3.1.1.
+function parentHeading(rawQuote, rawChunk) {
+  const first = markersIn(rawQuote)[0];
+  if (!first) return "";
+  const chunk = toAsciiDigits(rawChunk);
+  const at = chunk.indexOf(first.dotted ?? first.label);
+  if (at < 0) return "";
+  const before = chunk.slice(0, at);
+  const ancestors = [];
+  if (first.dotted && first.dotted.includes(".")) {
+    const parts = first.dotted.split(".");
+    for (let n = parts.length - 1; n >= 1; n--) ancestors.push(parts.slice(0, n).join("."));
+  } else {
+    ancestors.push(null);
+  }
+  const out = [];
+  for (const a of ancestors) {
+    // A bare top-level number needs its dot, or "3 घण्टा" (3 hours) would
+    // pass for heading 3.
+    const re = a
+      ? new RegExp(`(?<![\\d.])${a.replace(/\./g, "\\.")}\\.${a.includes(".") ? "?" : ""}(?=\\s)`, "g")
+      : /(?<![\d.])\d+\.(?=\s)/g;
+    let last = -1;
+    for (const m of before.matchAll(re)) last = m.index;
+    if (last >= 0) out.push(chunk.slice(last, Math.min(at, last + 200)));
+  }
+  return out.join(" ");
+}
+
+// The items directly before and after the quoted one, as source text. A claim
+// word the quote lacks but a neighbouring item has is the PP-01 pattern
+// exactly ("crop cutting" from 6.10 pinned onto "secondary data" in 6.9), so
+// it fails however small a share of the claim it is. A flat, stricter share
+// was tried first and withheld correct answers (SMOKE-01, PP-16), because
+// common words recur far from the quote; the next item over is narrower.
+function neighbourItems(rawQuote, rawChunk) {
+  const quoteMarks = markersIn(rawQuote);
+  if (!quoteMarks.length) return "";
+  const chunk = toAsciiDigits(rawChunk);
+  const chunkMarks = markersIn(chunk);
+  const labels = new Set(quoteMarks.map((m) => m.label));
+  const out = [];
+  for (const key of new Set(quoteMarks.map((m) => m.key))) {
+    const same = chunkMarks.filter((m) => m.key === key);
+    const idx = same.map((m, i) => (labels.has(m.label) ? i : -1)).filter((i) => i >= 0);
+    if (!idx.length) continue;
+    for (const i of [Math.min(...idx) - 1, Math.max(...idx) + 1]) {
+      const m = same[i];
+      if (!m) continue;
+      const next = chunkMarks.find((n) => n.index > m.index);
+      out.push(chunk.slice(m.index, Math.min(next ? next.index : chunk.length, m.index + 300)));
+    }
+  }
+  return out.join(" ");
+}
 
 export const THRESHOLDS = {
   quoteMatch: 0.85, // share of the quote's trigrams found in one window of the chunk
@@ -220,14 +338,17 @@ export function checkSupport(claims, chunkTextById, thresholds = THRESHOLDS, que
     // Checkable terms are the claim's words that occur somewhere in the cited
     // chunk. Words that occur nowhere in it (a paraphrase, a translation, or a
     // word the lossy extraction mangled) cannot tell us anything, so they are
-    // left out rather than counted as failures.
-    // Words the question itself uses ("the General Introduction of Soil
-    // Science") are context the answer may restate, not facts it must quote.
-    const questionNorm = compact(question);
-    const metaNorm = compact(metaById.get(c.source_id) || "");
-    const checkable = keyTerms(c.claim).filter(
-      (t) => termPresent(t, chunkNorm) && !termPresent(t, questionNorm) && !termPresent(t, metaNorm),
-    );
+    // left out rather than counted as failures. Words from the source's title,
+    // province and groups, or from the parent heading above the quote, are
+    // given context and not counted either. Words from the question are
+    // context for the share rule below ("agriculture officer syllabus",
+    // SMOKE-01), but never for the neighbouring-item rule: PP-01's question
+    // itself says "crop cutting", and exempting it there lets PP-01 through.
+    const decodedQuote = String(c.quote)
+      .replace(/\\u([0-9a-fA-F]{4})/g, (_, h) => String.fromCharCode(parseInt(h, 16)))
+      .replace(/\\x[0-9a-fA-F]{2}/g, "");
+    const contextNorm = compact(`${metaById.get(c.source_id) || ""} ${parentHeading(decodedQuote, chunk)}`);
+    const checkable = keyTerms(c.claim).filter((t) => termPresent(t, chunkNorm) && !termPresent(t, contextNorm));
     if (checkable.length === 0) {
       return {
         ...c,
@@ -237,18 +358,60 @@ export function checkSupport(claims, chunkTextById, thresholds = THRESHOLDS, que
         note: "no claim words occur in the chunk; only the quote and numbers were checked",
       };
     }
-    const stitched = checkable.filter((t) => !termPresent(t, passage)).map((t) => t.term);
-    const share = stitched.length / checkable.length;
+
+    // The claim must be stated inside one item. Without sibling items the
+    // whole quoted passage is that item.
+    const { segments, items, preamble, siblings: hasSiblings } = siblingSegments(decodedQuote);
+    // One exception: a quote that includes the heading the items sit under,
+    // and a claim that names every item under it, is listing them ("the
+    // second stage is a group test and an interview", SMOKE-03). That is a
+    // statement about the heading, which the quote contains. PP-01 does not
+    // qualify: its quote has no heading, and a quote that reached back to
+    // heading 6 would have to include 6.1 to 6.8 as well, which the claim
+    // does not cover. Known limit: a heading with exactly two items, and a
+    // claim that wrongly relates them, still passes.
+    const enumeration =
+      hasSiblings &&
+      keyTerms(preamble).length > 0 &&
+      items.every((it) => checkable.some((t) => termPresent(t, compact(it))));
+    const siblings = hasSiblings && !enumeration;
+    const candidates = siblings ? segments.map((s) => compact(s)) : [passage];
+    let best = null;
+    for (const cand of candidates) {
+      const stitched = checkable.filter((t) => !termPresent(t, cand)).map((t) => t.term);
+      if (!best || stitched.length < best.stitched.length) best = { stitched };
+    }
+    // Other items inside the quote count as neighbours too. The best item is
+    // included harmlessly: by definition it lacks every missing word.
+    const neighbourNorm = compact(`${neighbourItems(decodedQuote, chunk)} ${siblings ? segments.join(" ") : ""}`);
+    const fromNeighbour = checkable
+      .filter((t) => best.stitched.includes(t.term) && termPresent(t, neighbourNorm))
+      .map((t) => t.term);
+    if (fromNeighbour.length) {
+      return {
+        ...c,
+        ok: false,
+        quoteMatch: +match.score.toFixed(2),
+        stitched: best.stitched,
+        reason: `the claim takes words from the neighbouring numbered item, not the quoted one: ${fromNeighbour.join(", ")}`,
+      };
+    }
+    const questionNorm = compact(question);
+    const shareTerms = checkable.filter((t) => !termPresent(t, questionNorm));
+    const shareStitched = best.stitched.filter((term) => shareTerms.some((t) => t.term === term));
+    const share = shareTerms.length ? shareStitched.length / shareTerms.length : 0;
     if (share >= thresholds.stitchedShare) {
       return {
         ...c,
         ok: false,
         quoteMatch: +match.score.toFixed(2),
-        stitched,
-        reason: `the claim uses words from elsewhere in the chunk, not from the quoted passage: ${stitched.join(", ")}`,
+        stitched: best.stitched,
+        reason: siblings
+          ? `the claim joins separate numbered items; no single item states it (missing from the best item: ${best.stitched.join(", ")})`
+          : `the claim uses words from elsewhere in the chunk, not from the quoted passage: ${best.stitched.join(", ")}`,
       };
     }
-    return { ...c, ok: true, quoteMatch: +match.score.toFixed(2), stitched };
+    return { ...c, ok: true, quoteMatch: +match.score.toFixed(2), stitched: best.stitched };
   });
   const failed = results.filter((r) => !r.ok);
   return {

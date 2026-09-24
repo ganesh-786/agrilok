@@ -197,10 +197,10 @@ Level 7 past paper has been found yet.
 
 **What running them found - three faithfulness outcomes, not one.** Each
 question was run against the live pipeline before its expected behaviour was
-written, the same discipline as the smoke tests. 18 of 20 correctly refuse:
+written, the same discipline as the smoke tests. 17 of 20 correctly refuse:
 the syllabus corpus genuinely does not contain the specific facts these MCQs
 test (scientific names, exact percentages, named regulations), so refusal is
-the correct, faithful result, not a shortfall. Two produced an answer worth
+the correct, faithful result, not a shortfall. Three produced an answer worth
 naming individually, because the aggregate pass count would otherwise hide
 the one that matters most:
 
@@ -398,10 +398,55 @@ comparison with the previous baseline (35/37 on the primary, no check).
 Re-scored on the saved answers: **31 of 37 match**, against 35 of 37 before.
 The drop is in how often the system answers, not in faithfulness.
 
-**Not yet shown live:** the check catching `PP-01` on the model that
-fabricated it. `gemini-3.1-flash-lite` was down, and the fallback refused
-`PP-01` on its own. The offline tests reject every form of that answer, but the
-live case is still owed, as is a clean run once the primary model is back.
+**First live test on the primary model (2026-09-24): the check missed
+`PP-01`.** With `gemini-3.1-flash-lite` back, `PP-01` was shown to the student
+again. The model quoted one unbroken span covering item 6.9 ("Primary data and
+Secondary data") and item 6.10 ("Crop Cutting"). That span is genuinely one
+contiguous passage, so the contiguity check passed it. The offline tests had
+only tried quotes that skipped the text between the items, which is why they
+passed while the live case failed.
+
+**Fix: a claim must be stated inside one numbered item.**
+
+- A quote that crosses sibling items (6.9 then 6.10, (१) then (२), क) then ख))
+  is split at them.
+- A claim word the quoted item lacks, but the neighbouring item has, fails the
+  claim outright, however small a share of the claim it is.
+- A flat, stricter share was tried first and withheld two correct answers
+  (`SMOKE-01`, `PP-16`), because common words recur far from the quote.
+- One exception: a quote that includes its own heading, with a claim naming
+  every item under it, is a list ("the second stage is a group test and an
+  interview", `SMOKE-03`).
+- Headings above the quote ("3 Soil Science", "3.1 General Introduction")
+  count as context.
+- Words from the question count as context for the share rule, never for the
+  neighbouring-item rule, because `PP-01`'s own question says "crop cutting".
+- Separately, a false alarm on `PP-16` (a two-letter Nepali stem matching by
+  chance) was fixed.
+
+**Result, primary model, fallback off:**
+
+- **`PP-01` was run live 3 times and withheld all 3.** The model still
+  fabricates; the check now stops it reaching a student.
+- **The full golden set scored 34 of 37 live.** All 37 questions were answered
+  by `gemini-3.1-flash-lite`.
+- **One of the 3 mismatches, `SMOKE-01`, was a false alarm** from the first
+  version of the fix, since corrected. The check is deterministic, so
+  replaying it on that run's saved answers gives the exact result the fixed
+  version would have: **35 of 37**.
+- **The other two, `U-01` and `U-04`, were refused by the model itself.** They
+  are unverified questions and never count toward the gate.
+- **Every answer the run showed was read against its quote by hand, and all
+  are faithful.**
+- **Every form of the `PP-01` answer is withheld:** the live span in Nepali
+  and in English, a quote of 6.9 alone, 6.10 alone, an invented quote, and a
+  wrong item number. True claims about 6.9 and 6.10 on their own are still
+  shown.
+
+**Known limit.** A heading with exactly two items under it, quoted whole, with
+a claim that wrongly relates the two items, still passes. The check cannot
+tell "A and B are listed" from "A is a kind of B" without understanding the
+sentence, and that is a job for the human review queue, not a word check.
 
 ## Operational metrics
 
