@@ -48,11 +48,17 @@ Answer relevancy and latency may be traded against each other; faithfulness may
 not - an unfaithful answer is precisely the failure this project exists to
 prevent.
 
-Thresholds are set from the first full baseline run in Phase 1 and recorded
-here. Until that baseline exists, **no threshold is stated**, because a number
-invented in advance is not a measurement.
+The baseline is recorded in
+[`data/golden-set/baseline.json`](../data/golden-set/baseline.json): all 13
+pipeline smoke tests and all 20 real past-paper questions behave as expected.
+`python -m evaluation.gate` fails a run that answers a question it must
+refuse, lets an injected instruction into an answer, matches fewer gated
+questions than the baseline, or errors on a gated question. The unverified
+questions are reported but never gate. Faithfulness of the answered rows is
+still read by a person, and has a known gap (see [Phase 1](#phase-1)).
 
-Once the harness exists, `evaluate.yml` becomes a required status check on
+`evaluate.yml` runs the harness when the evaluation key and database are set
+as repository secrets. Once they are, make it a required status check on
 `main`.
 
 ## When to run it
@@ -447,6 +453,88 @@ passed while the live case failed.
 a claim that wrongly relates the two items, still passes. The check cannot
 tell "A and B are listed" from "A is a kind of B" without understanding the
 sentence, and that is a job for the human review queue, not a word check.
+
+## Phase 1
+
+### First run through the production pipeline (2026-09-24)
+
+The golden set now runs through `agrilok_core.pipeline.ask`, the code a
+student's question goes through, with the cache off and nothing stored.
+Everything else matches the end of Phase 0: the same corpus, the same prompt
+(`2026-09-24.1`), `gemini-3.1-flash-lite` with no fallback, top 6, minimum
+similarity 0.55. The one change is retrieval, which gained a keyword side
+([ADR-0013](adr/0013-keyword-retrieval-as-a-bm25-term-index.md)).
+
+| Tier | Phase 0, final | Phase 1 |
+|---|---|---|
+| Pipeline smoke tests (gated) | 13 of 13 | 13 of 13 |
+| Real past-paper (gated) | 20 of 20 | 20 of 20 |
+| Unverified model questions | 2 of 4 | 1 of 4 |
+
+- **The gate holds.** Every gated question behaved as expected. `PP-20` hit a
+  503 from the provider in the full run and was run again alone, when it
+  refused as expected.
+- **`PP-01` is still withheld** by the support check.
+- **`U-03` went from shown to withheld.** The answer was right: option (b),
+  Article 51(ज) clause (12). But the model's quote joined the heading (ज) and
+  clause (12) with "...", and the check requires one passage, because a
+  stitched quote is exactly the shape `PP-01`'s fabrication took. In Phase 0
+  the model happened to quote one passage. A correct answer withheld is the
+  safe failure, and `U-03` does not gate.
+- **`U-01` and `U-04` were refused by the model**, as in Phase 0.
+
+**Fusion was tried first and rejected.** Equal-weight reciprocal rank fusion
+kept both gated tiers level but pushed the Constitution text, the vector
+side's best match for `U-03`, out of the top six, and the model refused.
+Keeping the vector order and letting keyword matches only add restored it. A
+regression test pins it (ADR-0013).
+
+**Read by hand.** Nine rows were answered (`SMOKE-01` to `05`, `SMOKE-13`,
+`PP-16`, `PP-18`, `U-02`), and each was read against its quoted source.
+Eight are faithful. `PP-16` is only partly faithful. Its first sentence lists
+the organic manures exactly as the syllabus does. Its second, "fertilisers not
+in this list, such as chemical fertilisers, are not organic", is the model's
+own inference. The reference answer (urea) agrees with it, but the source does
+not say it, and that sentence is the one that answers the question.
+
+### Open: the check only sees the claims the model lists
+
+`PP-16`'s second sentence was never checked. The model lists its claims
+separately from the answer, and it listed only the first sentence. The
+support check verifies every listed claim, but nothing verifies that the
+answer says no more than its claims.
+
+A replay over every saved answer (44: the spike runs since the support check,
+both Phase 1 runs, and a local database) found 11 with at least one sentence
+where under 80% of the content words appear in any checked claim. Some are
+harmless: Nepali names added in brackets, connecting words like "additionally".
+Others are exactly what the check exists to stop:
+
+- `PP-16`, above.
+- "Note that source LUM-06-008 omits 'elasticity' ... compared to source
+  LUM-01-011", in two Phase 1 run 1 answers: statements about the sources that
+  carry no citation and were never checked.
+- A pre-generated answer on the exam stages, whose split of the written
+  exam into two 100-mark papers is in no claim.
+
+**Why it is not fixed yet.** A plain coverage bar at 0.8 would withhold a
+quarter of those answers, correct ones included. It would also withhold
+`PP-16`, a gated question expected to answer, and so change the gate's
+baseline. Under the rules above, that is its own change, measured and argued
+on its own. Until then, every answer carries the "pending review" label, and
+a pre-generated answer is read by a person before `answers verify` can mark it
+verified.
+
+**Proposed fix, to be measured:**
+
+1. Ask for one claim per cited sentence, and reject an answer whose sentences
+   and claims do not line up.
+2. A deterministic coverage check on cited sentences, with connecting words
+   ignored, tuned on the saved answers so that none of today's faithful
+   answers is withheld.
+3. Decide separately, on its merits, whether a syllabus list of organic
+   manures supports "urea is not organic". That decides `PP-16`'s expected
+   behaviour.
 
 ## Operational metrics
 

@@ -12,6 +12,36 @@ was wrong are in
 [ADR-0010](adr/0010-start-phase-1-with-the-level-7-box-open.md). The box
 stays unticked until the paper is in the golden set.
 
+**Built so far, and running locally; nothing is deployed:**
+
+- Ingestion with the admission gate in the path: nothing is retrievable until
+  a named person admits it
+  ([ADR-0012](adr/0012-admission-gate-before-serving.md)). Text-layer
+  extraction only; a scanned PDF is reported, not ingested.
+- Retrieval with a keyword side
+  ([ADR-0013](adr/0013-keyword-retrieval-as-a-bm25-term-index.md)), the support
+  check, the quota governor and the answer cache, all in `packages/core`.
+- The API and the web app: the syllabus library for each level, keyword
+  search, Ask with numbered citations, pre-generated answers, and saving a
+  level for offline reading. Nepali first, English one tap away.
+- The golden-set harness and its gate, run through the same pipeline
+  students use. The gate holds at 13 of 13 and 20 of 20
+  ([evaluation.md](evaluation.md#phase-1)).
+- A whitelisted crawler, never yet run against a live site.
+
+**Still open before Phase 1 can exit:**
+
+1. The Level 7 past-paper box above.
+2. The answer can say more than the claims the support check verifies
+   ([evaluation.md](evaluation.md#open-the-check-only-sees-the-claims-the-model-lists)).
+   This is a faithfulness gap, so it comes first.
+3. The evaluation key and database set as repository secrets, and
+   `evaluate.yml` made a required check.
+4. Documents admitted and read by a person. No document is `verified` yet.
+5. Hosting chosen and a first deployment, with the cache hit rate and daily
+   quota burn watched from day one.
+6. A first live crawl of an approved source, started by hand.
+
 ---
 
 ## Phase 0 - validation spike (1-2 weeks)
