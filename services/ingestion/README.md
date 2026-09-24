@@ -67,7 +67,7 @@ uv run agrilok-ingest import-phase0          # the Phase 0 corpus, queued
 uv run agrilok-ingest status                 # corpus and review queue
 uv run agrilok-ingest review list
 uv run agrilok-ingest review show <doc-id>
-uv run agrilok-ingest review admit <doc-id> --by @you
+uv run agrilok-ingest review admit <doc-id> --by @you --self-review
 uv run agrilok-ingest embed --yes            # vectors for admitted chunks
 uv run agrilok-ingest pregenerate --file data/pregenerate/common-questions.yaml
 uv run agrilok-ingest answers list           # review pre-generated answers

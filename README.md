@@ -4,7 +4,7 @@
 
 **A free, source-cited AI study platform for Nepal's Loksewa agriculture exams — Level 4 (JTA) and Level 7 (Officer).**
 
-[![Status](https://img.shields.io/badge/status-Phase%200%20%C2%B7%20scaffolding-orange)](docs/roadmap.md)
+[![Status](https://img.shields.io/badge/status-Phase%201%20%C2%B7%20MVP%20under%20test-orange)](docs/roadmap.md)
 [![CI](https://github.com/ganesh-786/agrilok/actions/workflows/ci.yml/badge.svg)](https://github.com/ganesh-786/agrilok/actions/workflows/ci.yml)
 [![Code: MIT](https://img.shields.io/badge/code-MIT-blue.svg)](LICENSE)
 [![Content: CC BY-SA 4.0](https://img.shields.io/badge/content-CC%20BY--SA%204.0-lightgrey.svg)](LICENSE-CONTENT)
@@ -15,11 +15,12 @@
 ---
 
 > [!WARNING]
-> **This repository is scaffolding. There is no working application yet.**
-> Phase 0 — a throwaway spike that must prove retrieval-grounded answers are
-> actually faithful to real past papers — has not been completed. Production
-> code does not begin until the [go/no-go gate](docs/roadmap.md#gono-go-gate)
-> is signed off. Do not study from anything here yet.
+> **Phase 1 MVP, under test. Nothing is deployed.** The app runs locally on
+> the documents collected in Phase 0. Most of them are still waiting for
+> human review, and every answer says so. Faithfulness has been measured on
+> real Level 4 papers only; the Level 7 check is still open
+> ([ADR-0010](docs/adr/0010-start-phase-1-with-the-level-7-box-open.md)).
+> Always confirm against the linked government document.
 
 ---
 
@@ -90,8 +91,9 @@ psc.gov.np | 7 provincial PSCs | narc.gov.np | agriculture ministry | Nepal Gaze
   CLEAN + TAG  - dedupe, strip boilerplate, tag {level, group, province, year}
       |
       v
-  HUMAN REVIEW QUEUE  - low-confidence or new-source docs are checked by a
-      |                  person BEFORE they may answer a student's question
+  HUMAN REVIEW QUEUE  - nothing is retrievable until a named person admits
+      |                  it; low-confidence text is compared with the PDF first
+      |                                                              [ADR-0012]
       v
   CHUNK  (~400 tokens, 15% overlap, section headers kept as metadata)
       |
@@ -105,7 +107,10 @@ psc.gov.np | 7 provincial PSCs | narc.gov.np | agriculture ministry | Nepal Gaze
   PROMPT ASSEMBLY  - retrieved text is fenced as DATA, never as instructions
       |                                                              [ADR-0005]
       v
-  GEMINI  (Flash tier, free)  - answers only from the retrieved text
+  GEMINI  (Flash-Lite, free tier)  - answers only from the retrieved text
+      |
+      v
+  SUPPORT CHECK  - each claim must quote its source, or the answer is withheld
       |
       v
   STUDENT  - the answer + a link to the original government document
@@ -132,9 +137,11 @@ agrilok/
 ├── .githooks/            blocks pushes to main, checks commit messages
 ├── apps/
 │   ├── web/              Next.js PWA - student-facing
-│   └── api/              FastAPI - retrieval, generation, quota governor
+│   └── api/              FastAPI - the HTTP layer: library, search, ask
+├── packages/
+│   └── core/             retrieval, generation, support check, quota, cache
 ├── services/
-│   ├── crawler/          Scrapy spiders, one per source domain
+│   ├── crawler/          Scrapy, whitelisted sources only, dry run by default
 │   ├── ingestion/        extract -> clean -> tag -> review -> chunk -> embed
 │   └── evaluation/       RAGAS-style golden-set harness            [ADR-0006]
 ├── infra/                DB migrations (incl. pgvector), seed data
@@ -153,18 +160,22 @@ does not.
 
 ## Quick start
 
-> Nothing is implemented yet, so these steps set up the *environment*, not a
-> running app. They grow as Phase 1 lands.
-
-**Prerequisites:** Node 20.18 (`.nvmrc`), Python 3.12 (`.python-version`),
-PostgreSQL 15+ with the `pgvector` extension, and a free
-[Gemini API key](https://aistudio.google.com/apikey).
+**Prerequisites:** [uv](https://docs.astral.sh/uv/) (it installs Python 3.12),
+Node 24 (`.nvmrc`), and a free
+[Gemini API key](https://aistudio.google.com/apikey) for answers. PostgreSQL
+with pgvector comes embedded for development.
 
 ```bash
 git clone https://github.com/ganesh-786/agrilok.git
 cd agrilok
-cp .env.example .env     # then fill in GEMINI_API_KEY and DATABASE_URL
+cp .env.example .env                  # add GEMINI_API_KEY
+uv sync --all-packages --all-extras
+uv run agrilok-db start && uv run agrilok-db migrate
+uv run agrilok-ingest import-phase0   # queued: nothing is served yet
 ```
+
+Admitting documents, embedding them, and running the API and the web app
+are in [CONTRIBUTING.md](CONTRIBUTING.md#development-setup).
 
 Read these three before writing any code:
 
