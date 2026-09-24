@@ -1,0 +1,57 @@
+# Common questions answered once and served to everyone (ADR-0004, layer 1).
+#
+#   agrilok-ingest pregenerate --dry-run      see the list and the request count
+#   agrilok-ingest pregenerate                run it (spends quota)
+#
+# Rules for adding a question here:
+#
+# - It must be answerable from documents actually in the corpus. The corpus is
+#   syllabi and a few reference texts, so good questions are about exam
+#   structure, marks, which topics a syllabus lists, and what a provision of
+#   the Constitution or an Act says. "Explain soil forming processes" is not:
+#   a syllabus names that topic but does not teach it, and the honest result
+#   is a refusal (ADR-0007).
+# - Scope it the way a student would: level always, province when the answer
+#   differs by province. Level 4 and Level 7 are separate entries.
+# - Every answer this produces is `ai_assisted_pending_review` until a named
+#   person verifies it with `agrilok-ingest answers verify`.
+# - This is not the golden set. Nothing here defines what "correct" means.
+
+questions:
+  # --- Level 7 (Officer) ------------------------------------------------------
+  - level: level_7
+    province: lumbini
+    question: "What are the stages of the Level 7 agriculture officer examination, and how many marks does each carry?"
+  - level: level_7
+    province: lumbini
+    question: "तह ७ कृषि अधिकृतको लिखित परीक्षाको पूर्णाङ्क कति हुन्छ?"
+  - level: level_7
+    province: lumbini
+    question: "How many marks is the Soil Science section worth in the Level 7 agriculture officer paper?"
+  - level: level_7
+    province: lumbini
+    question: "Which subtopics are listed under the General Introduction of Soil Science in the Level 7 syllabus?"
+  - level: level_7
+    province: lumbini
+    question: "Which topics are covered under General Plant Protection in the Level 7 syllabus?"
+  - level: level_7
+    province: federal
+    question: "What papers make up the federal Level 7 agriculture officer written examination, and how many marks does each carry?"
+  - level: level_7
+    province: sudurpaschim
+    question: "What are the stages of the Level 7 agriculture officer examination in Sudurpaschim Province, and how many marks does each carry?"
+  - level: level_7
+    question: "What does Article 36 of the Constitution of Nepal say about the right to food?"
+
+  # --- Level 4 (Assistant, JTA) ------------------------------------------------
+  - level: level_4
+    province: lumbini
+    question: "What agriculture service groups does the Level 4 Junior Technical Assistant curriculum cover in Lumbini Province?"
+  - level: level_4
+    province: lumbini
+    question: "तह ४ सहायक स्तरको लिखित परीक्षामा कति वटा पत्र हुन्छन् र प्रत्येकको पूर्णाङ्क कति हो?"
+  - level: level_4
+    province: lumbini
+    question: "Which kinds of fertilisers are listed in the Level 4 syllabus?"
+  - level: level_4
+    question: "नेपालको संविधान बमोजिम अवशिष्ट अधिकार कसमा निहित हुन्छ?"
