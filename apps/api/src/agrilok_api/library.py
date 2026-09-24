@@ -162,6 +162,19 @@ _UNIT = re.compile(
 )
 
 
+# Text the extraction damaged beyond rendering: a vowel sign or other mark with
+# no letter before it, or two vowel signs in a row. A phone draws these as
+# dotted circles, so such a line is no use as a table of contents entry.
+_UNRENDERABLE = re.compile(r"(?:^|\s)[\u0900-\u0903\u093a-\u093c\u093e-\u094d]|[\u093e-\u094c]{2}")
+# Fewer letters than this is a fragment of a wrapped line ("वस्त"), not a title.
+_MIN_TITLE_LETTERS = 4
+
+
+def _readable(body: str) -> bool:
+    letters = sum(1 for ch in body if ch.isalpha())
+    return letters >= _MIN_TITLE_LETTERS and not _UNRENDERABLE.search(body)
+
+
 def outline_from_chunks(texts: list[str], limit: int = 30) -> list[OutlineEntry]:
     entries: list[OutlineEntry] = []
     seen: set[str] = set()
@@ -177,6 +190,8 @@ def outline_from_chunks(texts: list[str], limit: int = 30) -> list[OutlineEntry]
                 label, body = match.group("num"), match.group("title")
             else:
                 label, body = "", line
+            if not _readable(body):
+                continue
             key = f"{label}|{body}".lower()
             if key in seen:
                 continue
