@@ -9,7 +9,8 @@ from __future__ import annotations
 import asyncio
 import math
 import sys
-from collections.abc import Awaitable, Callable, Sequence
+from collections.abc import Callable, Coroutine, Sequence
+from typing import Any
 
 from psycopg import AsyncConnection
 from psycopg.rows import DictRow, dict_row
@@ -62,16 +63,12 @@ def parse_vector(text: str) -> list[float]:
     return [float(x) for x in body.split(",")] if body else []
 
 
-def run_sync[T](main: Callable[[], Awaitable[T]]) -> T:
+def run_sync[T](main: Callable[[], Coroutine[Any, Any, T]]) -> T:
     """Run an async entry point from a CLI.
 
     psycopg's async driver cannot use Windows' default Proactor event loop, so
     command-line tools use a selector loop there.
     """
-
-    async def runner() -> T:
-        return await main()
-
     if sys.platform == "win32":
-        return asyncio.run(runner(), loop_factory=asyncio.SelectorEventLoop)
-    return asyncio.run(runner())
+        return asyncio.run(main(), loop_factory=asyncio.SelectorEventLoop)
+    return asyncio.run(main())

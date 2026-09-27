@@ -103,6 +103,8 @@ def parse_api_error(
                     )
                     break
     except (json.JSONDecodeError, AttributeError, TypeError):
+        # Not JSON, or not Google's error shape (a proxy's HTML error page, for
+        # one). The raw text is still the most useful message, so keep it.
         pass
 
     # Not every RESOURCE_EXHAUSTED is a daily quota. The embedding model has a

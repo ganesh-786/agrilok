@@ -177,8 +177,10 @@ def render_markdown(summary: dict[str, Any]) -> str:
         lines.append(f"| {tier} | {counts['matched']} | {counts['total']} | {counts['errors']} |")
     lines += [
         "",
-        "This checks mechanics only. For every answered row, read the cited source and write a "
-        "judgment: FAITHFUL, PARTIALLY FAITHFUL, NOT FAITHFUL or CANNOT ASSESS.",
+        (
+            "This checks mechanics only. For every answered row, read the cited source and "
+            "write a judgment: FAITHFUL, PARTIALLY FAITHFUL, NOT FAITHFUL or CANNOT ASSESS."
+        ),
         "",
     ]
     for r in summary["results"]:
