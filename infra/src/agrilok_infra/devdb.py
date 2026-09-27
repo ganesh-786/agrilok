@@ -89,7 +89,10 @@ def start() -> str:
         # Output goes to the log file, never to a pipe: on Windows the server
         # inherits pipe handles from pg_ctl, and capturing its output would
         # block until the server exits.
-        flags = subprocess.CREATE_NEW_PROCESS_GROUP if sys.platform == "win32" else 0
+        flags = 0
+        if sys.platform == "win32":
+            # Windows only; mypy skips this branch when it checks for Linux.
+            flags = subprocess.CREATE_NEW_PROCESS_GROUP
         result = subprocess.run(  # noqa: S603
             [
                 _exe("pg_ctl"),
