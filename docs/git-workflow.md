@@ -72,8 +72,9 @@ data(sources): add Gandaki PSC curriculum index
 ```
 
 Types: `feat`, `fix`, `docs`, `chore`, `refactor`, `test`, `perf`, `data`, `ci`.
-Scopes: `web`, `api`, `crawler`, `ingestion`, `eval`, `infra`, `sources`,
-`content`, `adr`, `claude`.
+Scopes: `web`, `api`, `core`, `crawler`, `ingestion`, `eval`, `infra`,
+`sources`, `content`, `adr`, `claude`. `core` is `packages/core`, the pipeline
+library the API, ingestion and evaluation share.
 
 Subject in the imperative, lower case, no trailing full stop. Body only when it
 adds something the subject cannot carry, such as why the change was needed or
