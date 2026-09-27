@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { parseAnswer, parseInline } from "@/lib/answer-text";
+import { isAskKey, type EnterKey } from "@/lib/enter-to-ask";
 import { formatDate, localDigits } from "@/lib/format";
 import { dictionaries } from "@/lib/i18n";
 import { levelFromSlug, slugFromLevel } from "@/lib/levels";
@@ -68,5 +69,46 @@ describe("dictionaries", () => {
     expect(en.home.what).toHaveLength(ne.home.what.length);
     expect(en.home.limits).toHaveLength(ne.home.limits.length);
     expect(Object.keys(en.answer.reasons).sort()).toEqual(Object.keys(ne.answer.reasons).sort());
+  });
+});
+
+describe("enter to ask", () => {
+  const key = (over: Partial<EnterKey> = {}): EnterKey => ({
+    key: "Enter",
+    shiftKey: false,
+    altKey: false,
+    ctrlKey: false,
+    metaKey: false,
+    isComposing: false,
+    keyCode: 13,
+    ...over,
+  });
+  const DESKTOP = false;
+  const PHONE = true;
+
+  it("asks on Enter and starts a new line on Shift + Enter", () => {
+    expect(isAskKey(key(), DESKTOP)).toBe(true);
+    expect(isAskKey(key({ shiftKey: true }), DESKTOP)).toBe(false);
+    expect(isAskKey(key({ altKey: true }), DESKTOP)).toBe(false);
+  });
+
+  it("never asks while an input method is composing a Nepali word", () => {
+    expect(isAskKey(key({ isComposing: true }), DESKTOP)).toBe(false);
+    // Safari: composition already ended, but the key press is the IME's.
+    expect(isAskKey(key({ keyCode: 229 }), DESKTOP)).toBe(false);
+    expect(isAskKey(key({ ctrlKey: true, isComposing: true }), DESKTOP)).toBe(false);
+  });
+
+  it("keeps Enter as a new line on a touch screen, where Shift + Enter does not exist", () => {
+    expect(isAskKey(key(), PHONE)).toBe(false);
+  });
+
+  it("asks on Ctrl + Enter or Cmd + Enter everywhere", () => {
+    expect(isAskKey(key({ ctrlKey: true }), PHONE)).toBe(true);
+    expect(isAskKey(key({ metaKey: true }), DESKTOP)).toBe(true);
+  });
+
+  it("ignores every other key", () => {
+    expect(isAskKey(key({ key: "a", keyCode: 65 }), DESKTOP)).toBe(false);
   });
 });
