@@ -92,7 +92,18 @@ uv run agrilok-ingest review admit --all-eligible --by @you --self-review --yes
 uv run agrilok-ingest embed --yes     # spends embedding quota
 ```
 
-Then the API and the web app, in two terminals:
+Then start the API and the web app together, with one command, from
+PowerShell, cmd or a Unix shell:
+
+```bash
+node scripts/dev.mjs                  # web on http://localhost:3000, API on :8000
+```
+
+It installs what is missing, starts the local database only if `.env` points
+at it (a hosted one such as Supabase is used as it is), applies pending
+migrations, and waits for the API before starting the web app. Ctrl+C stops
+everything it started. If you would rather run them yourself, in two
+terminals:
 
 ```bash
 uv run agrilok-api                    # http://127.0.0.1:8000/v1/health

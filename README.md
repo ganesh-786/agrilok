@@ -174,8 +174,9 @@ uv run agrilok-db start && uv run agrilok-db migrate
 uv run agrilok-ingest import-phase0   # queued: nothing is served yet
 ```
 
-Admitting documents, embedding them, and running the API and the web app
-are in [CONTRIBUTING.md](CONTRIBUTING.md#development-setup).
+Then `node scripts/dev.mjs` starts the API and the web app together, and
+Ctrl+C stops both. Admitting documents so there is something to show, and
+embedding them, are in [CONTRIBUTING.md](CONTRIBUTING.md#development-setup).
 
 Read these three before writing any code:
 
