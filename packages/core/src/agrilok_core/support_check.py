@@ -25,10 +25,21 @@ Why a quote and not plain word overlap: in PP-01 the cited chunk contains both
 A check that only asks "are the claim's words somewhere in the chunk" passes
 it. Requiring one passage that states the whole claim does not.
 
+Government syllabi often gloss their own terms in English, "नलखखत परीक्षा
+(Written Examination)". An English claim word that the cited chunk glosses is
+checked through the Nepali words it glosses, the way a Nepali claim would be.
+Without that, a correct English answer over a Nepali quote failed as
+"stitched" whenever the chunk's own gloss sat outside the quoted row (a Level 7
+full-marks question on KOSHI-01-000, 2026-09-27).
+
 Known limits, measured rather than assumed away: a claim in English over a
-Nepali quote cannot be word-checked (only the quote and its numbers are), so a
-mistranslated label can still pass. A heading with exactly two items, quoted
-whole, with a claim that wrongly relates them, still passes.
+Nepali quote can only be word-checked where the source glosses its terms;
+elsewhere only the quote and its numbers are, so a mistranslated label can
+still pass. Gloss words are paired by position, so a loose gloss can pair the
+wrong two words ("वस्तुगत बहुवैकल्पिक (Multiple Choice)" pairs "multiple"
+with वस्तुगत), though always two words of the same glossed phrase. A heading
+with exactly two items, quoted whole, with a claim that wrongly relates them,
+still passes.
 """
 
 from __future__ import annotations
@@ -146,9 +157,26 @@ _DEVANAGARI = re.compile("[ऀ-ॿ]")
 _NUMBER = re.compile(r"[0-9]+(?:\.[0-9]+)?")
 _LEADING_ZEROS = re.compile(r"^0+(?=[0-9])")
 
+# Recorded with every stored answer. A cached refusal is reused only when the
+# same version of the check made it, because a changed check may answer what
+# an older one withheld. Change it whenever a verdict can change.
+SUPPORT_CHECK_VERSION = "2026-09-27.1"
+
 # How far above the quoted passage a heading number may sit (characters of
 # normalised text).
 HEADING_WINDOW = 600
+
+# A parenthesised English gloss in the source text, and what ends the Nepali
+# phrase it translates when reading back from its "(".
+_GLOSS = re.compile(r"\(([A-Za-z][A-Za-z &/,.'-]*)\)")
+_GLOSS_START = re.compile("[()\r\n:;,।|]")
+# A vowel sign or other mark stranded on its own between line breaks, as the
+# extraction leaves "सामूहिक" ("साम\n\nू\n\nवहक"). A mark never starts a word,
+# so the pieces on either side are one word; rejoined, the glossed phrase keeps
+# its word count and lines up with its English.
+_LONE_MARK = re.compile("[ \t\r\n]+([ऀ-ःऺ-ॏ॑-ॗॢॣ])[ \t\r\n]+")
+# How far back from "(" the glossed phrase may start (characters of raw text).
+GLOSS_WINDOW = 80
 
 # Numbered items: dotted numerals ("6.10.", "3.1.1"), parenthesised numerals
 # ("(१२)" after digit conversion) and Devanagari letter items ("(क)", "ख)").
@@ -304,8 +332,44 @@ def _term_present(t: Term, text: str) -> bool:
         # scores 0.667 and must count (PP-16, "बायोग्यासको" extracted without ब).
         return hit / len(tg) >= 0.66
     words = text.split(" ")
-    bare = t.term[:-1] if t.term.endswith("s") else t.term
-    return any(w == t.term or (w[:-1] if w.endswith("s") else w) == bare for w in words)
+    bare = _bare(t.term)
+    return any(w == t.term or _bare(w) == bare for w in words)
+
+
+def _bare(word: str) -> str:
+    return word[:-1] if word.endswith("s") else word
+
+
+def _glosses(raw_chunk: str) -> dict[str, list[Term]]:
+    """English words the chunk uses to translate its own Nepali terms.
+
+    "नलखखत परीक्षा (Written Examination)" pairs "written" with नलखखत and
+    "examination" with परीक्षा. Words are paired by position, and only when
+    both sides have the same number of key terms; a gloss whose sides do not
+    line up is ignored, so a doubtful pairing can only make the check stricter.
+    """
+    out: dict[str, list[Term]] = {}
+    for m in _GLOSS.finditer(raw_chunk):
+        latin = [t for t in _key_terms(m.group(1)) if not t.devanagari]
+        if not latin:
+            continue
+        before = _LONE_MARK.sub(r"\1", raw_chunk[max(0, m.start() - GLOSS_WINDOW) : m.start()])
+        start = 0
+        for d in _GLOSS_START.finditer(before):
+            start = d.end()
+        nepali = [t for t in _key_terms(before[start:]) if t.devanagari]
+        if len(nepali) != len(latin):
+            continue
+        for en, ne in zip(latin, nepali, strict=True):
+            out.setdefault(_bare(en.term), []).append(ne)
+    return out
+
+
+def _glossed_present(t: Term, text: str, glosses: dict[str, list[Term]]) -> bool:
+    """An English term is present if a Nepali word the chunk glosses it with is."""
+    return not t.devanagari and any(
+        _term_present(ne, text) for ne in glosses.get(_bare(t.term), [])
+    )
 
 
 @dataclass(frozen=True)
@@ -557,11 +621,25 @@ def _check_claim(
     )
     siblings = sib.siblings and not enumeration
     candidates = [compact(s) for s in sib.segments] if siblings else [passage]
-    # min() keeps the first of equally short lists, like the strict `<` it ports.
-    best = min(
-        ([t.term for t in checkable if not _term_present(t, cand)] for cand in candidates),
-        key=len,
-    )
+    glosses = _glosses(chunk)
+    scored: list[tuple[list[str], list[str]]] = []
+    for cand in candidates:
+        absent: list[str] = []
+        via_gloss: list[str] = []
+        for t in checkable:
+            if _term_present(t, cand):
+                continue
+            if _glossed_present(t, cand, glosses):
+                via_gloss.append(t.term)
+            else:
+                absent.append(t.term)
+        scored.append((absent, via_gloss))
+    # The item missing the fewest claim words. The strict `<` keeps the first
+    # of equally short lists, as the JavaScript it ports does.
+    best, glossed = scored[0]
+    for absent, via_gloss in scored[1:]:
+        if len(absent) < len(best):
+            best, glossed = absent, via_gloss
 
     # Other items inside the quote count as neighbours too. The best item is
     # included harmlessly: by definition it lacks every missing word.
@@ -596,4 +674,14 @@ def _check_claim(
             + ", ".join(best)
         )
         return ClaimResult(claim, source_id, quote, False, reason, score, best)
-    return ClaimResult(claim, source_id, quote, True, quote_match=score, stitched=best)
+    return ClaimResult(
+        claim,
+        source_id,
+        quote,
+        True,
+        quote_match=score,
+        stitched=best,
+        note="checked through the source's own English gloss: " + ", ".join(glossed)
+        if glossed
+        else None,
+    )

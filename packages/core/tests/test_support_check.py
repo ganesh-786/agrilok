@@ -151,3 +151,64 @@ def test_window_match_survives_split_devanagari_words() -> None:
     # SMOKE-05: the model writes "कृषि" where extraction split it as "क ृ षि".
     chunk = "4.1 क ृ षि प्रसार र सञ्चार"
     assert best_window_match("कृषि प्रसार", chunk).score == 1.0
+
+
+# --- English words the source glosses itself -----------------------------------------
+
+# The Nepali-only summary rows of KOSHI-01-000. The chunk's own English glosses,
+# "(Written Examination)" and "(Group Test & Interview)", sit further down.
+KOSHI_WRITTEN_ROW = "प्रथम नलखखत परीक्षा २००"
+KOSHI_FINAL_ROW = "अखन्तम साम ू वहक परीक्षण र अन्तवागताग ४०"
+KOSHI_QUESTION = "what are the full marks of the level 7"
+
+
+def test_english_claims_over_a_self_glossed_nepali_row_pass(excerpts: dict[str, str]) -> None:
+    # Live on 2026-09-27: a correct answer withheld because the claim's
+    # English words were found in the chunk's glosses, outside the quote.
+    result = check_support(
+        [
+            {
+                "claim": "The total marks for the written examination (First Phase) are 200.",
+                "source_id": "KOSHI-01-000",
+                "quote": KOSHI_WRITTEN_ROW,
+            },
+            {
+                "claim": "The final phase, consisting of a group test and an interview, "
+                "has a total of 40 marks.",
+                "source_id": "KOSHI-01-000",
+                "quote": KOSHI_FINAL_ROW,
+            },
+        ],
+        {"KOSHI-01-000": excerpts["KOSHI-01-000"]},
+        question=KOSHI_QUESTION,
+    )
+    assert result.supported, result.reason
+    assert "written" in (result.results[0].note or "")
+    assert "interview" in (result.results[1].note or "")
+
+
+def test_a_gloss_does_not_excuse_words_from_another_row(excerpts: dict[str, str]) -> None:
+    # The glosses exist, but the Nepali they translate is not in the quote.
+    wrong = [
+        ("The interview is worth 200 marks.", KOSHI_WRITTEN_ROW),
+        ("The group test carries 200 marks.", KOSHI_WRITTEN_ROW),
+        ("The written examination is worth 40 marks.", KOSHI_FINAL_ROW),
+    ]
+    for claim, quote in wrong:
+        result = _check(excerpts, "KOSHI-01-000", claim, quote, KOSHI_QUESTION)
+        assert not result.supported, claim
+        assert "elsewhere in the chunk" in (result.reason or ""), claim
+
+
+def test_a_gloss_is_read_back_to_the_start_of_its_phrase(excerpts: dict[str, str]) -> None:
+    # "प्रथम चरण :- नलम्खत परीक्षा (Written Examination)": the gloss translates
+    # the two words after ":-", so a quote that stops before the gloss still
+    # supports "written examination".
+    result = _check(
+        excerpts,
+        "LUM-01-000",
+        "The first phase is the written examination.",
+        "प्रथम चरण :- नलम्खत परीक्षा",
+    )
+    assert result.supported, result.reason
+    assert result.results[0].note is not None

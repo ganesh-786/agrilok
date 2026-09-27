@@ -72,6 +72,28 @@ def _fixture_cases(excerpts: dict[str, str]) -> list[dict[str, Any]]:
                     "meta": {},
                 }
             )
+    # English claims over Nepali rows the chunk glosses elsewhere, right and
+    # wrong, so both implementations are compared on the gloss rule too.
+    gloss_quotes = [
+        "प्रथम नलखखत परीक्षा २००",
+        "अखन्तम साम ू वहक परीक्षण र अन्तवागताग ४०",
+    ]
+    gloss_claims = [
+        "The written examination (First Phase) carries 200 marks.",
+        "The final phase, a group test and an interview, carries 40 marks.",
+        "The interview is worth 200 marks.",
+        "The written examination is worth 40 marks.",
+    ]
+    for quote in gloss_quotes:
+        for claim in gloss_claims:
+            cases.append(
+                {
+                    "claims": [{"claim": claim, "source_id": "KOSHI-01-000", "quote": quote}],
+                    "chunks": {"KOSHI-01-000": excerpts["KOSHI-01-000"]},
+                    "question": "What are the full marks of Level 7?",
+                    "meta": {},
+                }
+            )
     return cases
 
 

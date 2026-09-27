@@ -19,9 +19,17 @@
 // A quote that runs across two sibling numbered items (6.9 then 6.10) is
 // split at them, and the claim must be stated inside one item. See MARKER.
 //
+// Government syllabi often gloss their own terms in English, "नलखखत परीक्षा
+// (Written Examination)". An English claim word that the cited chunk glosses
+// is checked through the Nepali words it glosses, the way a Nepali claim
+// would be. See glossesIn. Kept identical to packages/core's support_check.py,
+// whose parity test replays both.
+//
 // Known limits, measured against the golden set rather than assumed away:
-// a claim in English over a Nepali quote cannot be word-checked (only the
-// quote and its numbers are), so a mistranslated label can still pass.
+// a claim in English over a Nepali quote can only be word-checked where the
+// source glosses its terms; elsewhere only the quote and its numbers are, so
+// a mistranslated label can still pass. Gloss words are paired by position,
+// so a loose gloss can pair the wrong two words of the same phrase.
 
 // Devanagari extraction in this corpus is lossy (matras misplaced, "ह"
 // sometimes lost), so words are compared on a consonant skeleton and fuzzily.
@@ -169,6 +177,47 @@ function termPresent(t, text) {
   const words = text.split(" ");
   const bare = t.term.replace(/s$/, "");
   return words.some((w) => w === t.term || w.replace(/s$/, "") === bare);
+}
+
+// A parenthesised English gloss in the source text, and what ends the Nepali
+// phrase it translates when reading back from its "(".
+const GLOSS = /\(([A-Za-z][A-Za-z &\/,.'-]*)\)/g;
+const GLOSS_START = /[()\r\n:;,।|]/g;
+// A vowel sign or other mark stranded on its own between line breaks, as the
+// extraction leaves "सामूहिक" ("साम\n\nू\n\nवहक"). A mark never starts a word,
+// so the pieces on either side are one word; rejoined, the glossed phrase keeps
+// its word count and lines up with its English.
+const LONE_MARK = /[ \t\r\n]+([ऀ-ःऺ-ॏ॑-ॗॢॣ])[ \t\r\n]+/g;
+// How far back from "(" the glossed phrase may start (characters of raw text).
+const GLOSS_WINDOW = 80;
+
+// English words the chunk uses to translate its own Nepali terms: "नलखखत
+// परीक्षा (Written Examination)" pairs "written" with नलखखत and "examination"
+// with परीक्षा. Words are paired by position, and only when both sides have
+// the same number of key terms; a gloss whose sides do not line up is
+// ignored, so a doubtful pairing can only make the check stricter.
+function glossesIn(rawChunk) {
+  const out = new Map();
+  for (const m of rawChunk.matchAll(GLOSS)) {
+    const latin = keyTerms(m[1]).filter((t) => !t.devanagari);
+    if (latin.length === 0) continue;
+    const before = rawChunk.slice(Math.max(0, m.index - GLOSS_WINDOW), m.index).replace(LONE_MARK, "$1");
+    let start = 0;
+    for (const d of before.matchAll(GLOSS_START)) start = d.index + d[0].length;
+    const nepali = keyTerms(before.slice(start)).filter((t) => t.devanagari);
+    if (nepali.length !== latin.length) continue;
+    latin.forEach((en, i) => {
+      const key = en.term.replace(/s$/, "");
+      if (!out.has(key)) out.set(key, []);
+      out.get(key).push(nepali[i]);
+    });
+  }
+  return out;
+}
+
+// An English term is present if a Nepali word the chunk glosses it with is.
+function glossedPresent(t, text, glosses) {
+  return !t.devanagari && (glosses.get(t.term.replace(/s$/, "")) || []).some((ne) => termPresent(ne, text));
 }
 
 // How far above the quoted passage a heading number may sit (characters of
@@ -376,10 +425,17 @@ export function checkSupport(claims, chunkTextById, thresholds = THRESHOLDS, que
       items.every((it) => checkable.some((t) => termPresent(t, compact(it))));
     const siblings = hasSiblings && !enumeration;
     const candidates = siblings ? segments.map((s) => compact(s)) : [passage];
+    const glosses = glossesIn(chunk);
     let best = null;
     for (const cand of candidates) {
-      const stitched = checkable.filter((t) => !termPresent(t, cand)).map((t) => t.term);
-      if (!best || stitched.length < best.stitched.length) best = { stitched };
+      const stitched = [];
+      const glossed = [];
+      for (const t of checkable) {
+        if (termPresent(t, cand)) continue;
+        if (glossedPresent(t, cand, glosses)) glossed.push(t.term);
+        else stitched.push(t.term);
+      }
+      if (!best || stitched.length < best.stitched.length) best = { stitched, glossed };
     }
     // Other items inside the quote count as neighbours too. The best item is
     // included harmlessly: by definition it lacks every missing word.
@@ -411,7 +467,13 @@ export function checkSupport(claims, chunkTextById, thresholds = THRESHOLDS, que
           : `the claim uses words from elsewhere in the chunk, not from the quoted passage: ${best.stitched.join(", ")}`,
       };
     }
-    return { ...c, ok: true, quoteMatch: +match.score.toFixed(2), stitched: best.stitched };
+    return {
+      ...c,
+      ok: true,
+      quoteMatch: +match.score.toFixed(2),
+      stitched: best.stitched,
+      ...(best.glossed.length ? { note: `checked through the source's own English gloss: ${best.glossed.join(", ")}` } : {}),
+    };
   });
   const failed = results.filter((r) => !r.ok);
   return {

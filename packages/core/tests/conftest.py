@@ -22,7 +22,7 @@ def pytest_asyncio_loop_factories(
 
 @pytest.fixture(scope="session")
 def excerpts() -> dict[str, str]:
-    """Short passages from three real syllabus and Constitution chunks.
+    """Short passages from four real syllabus and Constitution chunks.
 
     Kept short on purpose (NOTICE: quote only what is needed). The text is
     exactly as extracted, damage included, because the damage is what the
