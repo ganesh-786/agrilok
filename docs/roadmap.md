@@ -34,7 +34,10 @@ stays unticked until the paper is in the golden set.
 1. The Level 7 past-paper box above.
 2. The answer can say more than the claims the support check verifies
    ([evaluation.md](evaluation.md#open-the-check-only-sees-the-claims-the-model-lists)).
-   This is a faithfulness gap, so it comes first.
+   This is a faithfulness gap, so it comes first. Close behind it, the
+   check cannot match dotted numbers such as section 3.1, so it withholds
+   correct answers at random
+   ([evaluation.md](evaluation.md#open-the-number-rule-cannot-see-dotted-numbers)).
 3. The evaluation key and database set as repository secrets, and
    `evaluate.yml` made a required check.
 4. Documents admitted and read by a person. No document is `verified` yet.

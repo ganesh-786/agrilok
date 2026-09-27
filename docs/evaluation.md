@@ -497,6 +497,71 @@ in this list, such as chemical fertilisers, are not organic", is the model's
 own inference. The reference answer (urea) agrees with it, but the source does
 not say it, and that sentence is the one that answers the question.
 
+### The source's own English glosses (2026-09-27)
+
+A student asked "what are the full marks of the level 7" and was refused,
+although the drafted answer was right: 200 marks for the written
+examination, 40 for the group test and interview. The quote was the Nepali
+summary row `प्रथम नलखखत परीक्षा २००` of `KOSHI-01-000`, the claim was in
+English, and the chunk translates its own terms further down, `नलखखत परीक्षा
+(Written Examination)`. The check found "written" and "examination" in the
+chunk but not in the quoted row, and read the claim as assembled from
+elsewhere.
+
+**The change.** An English claim word that the cited chunk glosses is now
+checked through the Nepali words it glosses, the way a Nepali claim would
+be. Words pair by position, and only when both sides of the gloss have the
+same number of key terms, so a doubtful pairing is ignored rather than
+trusted. The spike's JavaScript check got the same rule, and the parity test
+still requires identical verdicts. A stored refusal now records which version
+of the check made it (migration `0008`), so a fix to the check reaches a
+student who already asked instead of serving them the old refusal.
+
+**Replay, no model calls.** Every saved claim set, 53 of them (the spike
+reports, the Phase 1 reports and the answers stored on Supabase), went
+through the committed check and the changed one. Two verdicts changed: both
+are this question asked two ways, both went from withheld to answered, and
+both are right. None went the other way, and `PP-01` is still withheld.
+
+**Golden set, before and after.** These are the first runs on Supabase. The
+before run matches the local baseline on both gated tiers, so moving the
+database changed nothing.
+
+| Tier | Before | After |
+|---|---|---|
+| Pipeline smoke tests (gated) | 13 of 13 | 12 of 13 |
+| Real past-paper (gated) | 20 of 20 | 20 of 20 |
+| Unverified model questions | 1 of 4 | 1 of 4 |
+
+- **The gate failed on the after run, on `SMOKE-01`, and this change is not
+  the cause.** The model wrote section numbers into its claim this time
+  ("General Introduction of Soil Science (3.1)") and the number rule refused
+  it. The committed check refuses that same answer for the same reason. Run
+  alone three more times on the changed check, `SMOKE-01` was answered 3 of
+  3. The failure is recorded here, not rerun away, and the baseline stays at
+  13.
+- **It found an older bug.** See the next section.
+- **Read by hand.** The gloss rule was used once in the after run, on
+  `SMOKE-03`: "examination" in "the second stage of the Lumbini Province
+  examination". Its four claims (Lumbini 200, then 10 and 30; Sudurpaschim
+  200, then 10 and 25) each match their quoted rows. The other answered rows
+  are the same ones as before.
+
+### Open: the number rule cannot see dotted numbers
+
+The rule that every number in a claim appears in the quote reads the source
+in its matching form, where punctuation, dots included, becomes a space. So
+"3.1" in a claim can never be found, even in a quote that begins `3.1.
+General Introduction`: the source side has only "3" and "1". Any claim with a
+section number or a decimal is withheld, and whether a correct answer is
+shown depends on whether the model happens to write one. That is what made
+`SMOKE-01` fail once in four. It is in the JavaScript check too, and it
+predates Phase 1.
+
+The fix is to read the passage's numbers from the source text as extracted,
+not from its matching form. It changes verdicts on gated rows, so it is its
+own change, measured with the replay and the golden set.
+
 ### Open: the check only sees the claims the model lists
 
 `PP-16`'s second sentence was never checked. The model lists its claims
