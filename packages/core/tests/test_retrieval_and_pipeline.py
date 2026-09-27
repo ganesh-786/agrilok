@@ -405,6 +405,31 @@ async def test_a_cached_answer_dies_when_its_source_changes(
     assert fake.calls["generate"] == 2
 
 
+async def test_a_refusal_from_an_older_support_check_is_judged_again(
+    rt: Runtime, fake: FakeGemini, excerpts: dict[str, str]
+) -> None:
+    # A fix to the check must reach a student who already asked. On 2026-09-27
+    # a corrected check could not: the stored refusal kept being served.
+    question = "How many marks is the written examination?"
+    async with rt.pool.connection() as conn:
+        await add_document(conn, "LUM-01")
+        await add_chunk(conn, "LUM-01-000", "LUM-01", excerpts["LUM-01-000"], SOIL)
+    fake.embeddings[question] = SOIL
+    unsure = generation_response({"sufficient": False, "answer": "", "claims": []})
+    fake.generations.extend([unsure, unsure])
+
+    first = await ask(rt, question=question, level=ExamLevel.LEVEL_7)
+    same_check = await ask(rt, question=question, level=ExamLevel.LEVEL_7)
+    async with rt.pool.connection() as conn:
+        await conn.execute("update answers set check_version = 'an-older-check'")
+    changed_check = await ask(rt, question=question, level=ExamLevel.LEVEL_7)
+
+    assert first.stage is Stage.MODEL_INSUFFICIENT
+    assert same_check.cache.hit
+    assert not changed_check.cache.hit
+    assert fake.calls["generate"] == 2
+
+
 async def test_nul_characters_in_a_models_quote_do_not_break_storage(
     rt: Runtime, fake: FakeGemini, excerpts: dict[str, str]
 ) -> None:

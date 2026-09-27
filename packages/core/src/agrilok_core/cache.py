@@ -5,7 +5,9 @@ An answer is only reused while it is still true to its sources:
 - an answered question is reused only if every document it cites is still
   admitted, not superseded, and has the same checksum it was cited at;
 - a refusal is reused only at the corpus revision it was made at, because a
-  newly admitted document may answer what used to be refused.
+  newly admitted document may answer what used to be refused, and only if the
+  same version of the support check made it, because a changed check may
+  answer what an older one withheld.
 
 Near-duplicate reuse applies to answered questions only, never to refusals: a
 refusal for "Article 36" must not be served for "Article 63". The matched
@@ -19,6 +21,7 @@ from collections.abc import Sequence
 from typing import Any
 
 from agrilok_core.db import Conn, vector_literal
+from agrilok_core.support_check import SUPPORT_CHECK_VERSION
 from agrilok_core.text import question_key
 
 
@@ -44,6 +47,8 @@ async def bump_corpus_revision(conn: Conn) -> int:
 
 async def _still_valid(conn: Conn, row: dict[str, Any]) -> bool:
     if row["status"] == "refused":
+        if row.get("check_version") != SUPPORT_CHECK_VERSION:
+            return False
         return int(row["corpus_revision"]) == await corpus_revision(conn)
     cited: dict[str, str] = row.get("cited_documents") or {}
     if not cited:

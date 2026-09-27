@@ -1,0 +1,11 @@
+-- Which version of the support check (ADR-0008) judged an answer.
+--
+-- A cached refusal is reused only when the same version of the check made
+-- it, because a changed check may answer what an older one withheld. Without
+-- this, a fix to the check could not reach a student who had already asked:
+-- the stored refusal kept being served until the corpus happened to change.
+--
+-- Rows from before this column are NULL, so each of their refusals is judged
+-- once more, on the next ask. Answered rows are not affected: whether an
+-- answer stays servable depends on its sources (0006), not on this column.
+alter table answers add column check_version text;

@@ -47,7 +47,7 @@ from agrilok_core.prompt import (
 from agrilok_core.quota import QuotaExceededError
 from agrilok_core.retrieval import Candidate, Filters, RetrievalResult, retrieve
 from agrilok_core.runtime import Runtime
-from agrilok_core.support_check import check_support
+from agrilok_core.support_check import SUPPORT_CHECK_VERSION, check_support
 from agrilok_core.text import question_key
 
 log = logging.getLogger(__name__)
@@ -234,13 +234,13 @@ async def _store(
         insert into answers (
             id, exam_level, province, service_group, question, question_norm, question_hash,
             question_embedding, status, refusal_stage, answer_text, citations, consulted,
-            support_check, withheld_answer, model, prompt_version, corpus_revision,
-            cited_documents, origin
+            support_check, withheld_answer, model, prompt_version, check_version,
+            corpus_revision, cited_documents, origin
         ) values (
             %(id)s, %(level)s, %(province)s, %(group)s, %(question)s, %(norm)s, %(hash)s,
             %(qv)s::vector, %(status)s, %(stage)s, %(answer)s, %(citations)s, %(consulted)s,
-            %(support)s, %(withheld)s, %(model)s, %(prompt)s, %(revision)s,
-            %(cited)s, %(origin)s
+            %(support)s, %(withheld)s, %(model)s, %(prompt)s, %(check)s,
+            %(revision)s, %(cited)s, %(origin)s
         )
         """,
         {
@@ -261,6 +261,7 @@ async def _store(
             "withheld": result.withheld_answer,
             "model": result.model,
             "prompt": PROMPT_VERSION,
+            "check": SUPPORT_CHECK_VERSION,
             "revision": revision,
             "cited": Jsonb(cited_documents),
             "origin": origin,
