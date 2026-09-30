@@ -4,8 +4,16 @@ Real past-paper questions with known-correct answers. This defines what
 "correct" means for the entire system, so it is reviewed like production code
 and is CODEOWNER-protected.
 
-> **Status:** empty. Populated during Phase 0, which requires manual
-> faithfulness checking against at least 20 real past-paper questions.
+> **Status:** 37 questions. 20 are real past-paper questions (Level 4, Koshi),
+> 13 are pipeline smoke tests, and 4 are model-written Level 7 questions not
+> yet checked against a paper. Every answered row of the Phase 0 run was
+> checked by hand. Real Level 7 papers and other provinces are still missing. See
+> [evaluation.md](../../docs/evaluation.md).
+
+| File | What it is |
+|---|---|
+| `questions.yaml` | The questions, the expected behaviour (answer or refuse) and a source hint |
+| `baseline.json` | Matched counts from the last hand-checked run; the gate compares against it |
 
 ## Composition target
 

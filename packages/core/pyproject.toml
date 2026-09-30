@@ -1,0 +1,36 @@
+[project]
+name = "agrilok-core"
+version = "0.1.0"
+description = "Retrieval, generation, caching and safety checks shared by the agrilok API, ingestion and evaluation."
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+license = "MIT"
+dependencies = [
+  "httpx>=0.28",
+  # LGPL-3.0, used as a dynamically imported library; see NOTICE.
+  "psycopg[binary]>=3.2",
+  "psycopg-pool>=3.2",
+  "pydantic>=2.9",
+  "pydantic-settings>=2.6",
+  "pyyaml>=6.0",
+  # zoneinfo has no time zone database on Windows without it.
+  "tzdata>=2024.1",
+]
+
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/agrilok_core"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+mypy_path = "src"
+explicit_package_bases = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"

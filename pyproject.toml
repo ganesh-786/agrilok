@@ -1,0 +1,31 @@
+# uv workspace for every Python component.
+#
+# Each member is its own package with its own pyproject.toml. This root file is
+# a virtual workspace: it is not a package itself, it only ties the members to
+# one lockfile (uv.lock) so they resolve the same versions and can depend on
+# packages/core by path instead of by a published version.
+#
+#   uv sync --all-packages       install every member plus the dev tools below
+#   uv run --package agrilok-api agrilok-api
+#
+# Per-component tool settings (mypy, pytest) live in each member's own
+# pyproject.toml, because CI runs them from inside each component directory.
+
+[tool.uv.workspace]
+members = [
+  "packages/core",
+  "apps/api",
+  "services/ingestion",
+  "services/evaluation",
+  "services/crawler",
+  "infra",
+]
+
+[dependency-groups]
+dev = [
+  "mypy>=1.13",
+  "pytest>=8.3",
+  "pytest-asyncio>=0.24",
+  "ruff>=0.8",
+  "types-PyYAML>=6.0",
+]

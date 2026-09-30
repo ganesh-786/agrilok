@@ -128,3 +128,13 @@ logs/
 
 # claude/ is a local-only directory for the Claude LLM. It contains local settings and caches that should not be committed.
 .claude
+
+# --- Local development state (embedded Postgres data, logs) ------------------
+.local/
+
+# --- Crawl reports (uploaded as CI artifacts, never committed) ---------------
+services/crawler/reports/**
+!services/crawler/reports/.gitkeep
+
+# --- Next.js generated type references (recreated by `next typegen`) ---------
+apps/web/next-env.d.ts

@@ -5,6 +5,7 @@ repository root.
 
 | Script | Purpose |
 |---|---|
+| [`dev.mjs`](dev.mjs) | Start the API and the web app for development with one command, `node scripts/dev.mjs`. Ctrl+C stops everything it started. |
 | [`check-licenses.sh`](check-licenses.sh) | Regenerate dependency license info and flag copyleft licenses. Run before a release and on any `needs-license-check` PR. |
 
 ## Conventions
@@ -19,6 +20,9 @@ repository root.
   message when a required variable is missing.
 - Keep them cross-platform where practical. Contributors are on Windows and
   Linux; `.gitattributes` keeps `*.sh` at LF.
+- The exception to bash is a script everyone runs day to day from any shell,
+  such as `dev.mjs`: PowerShell cannot run a bash script, and Node is already
+  required for the web app. It follows the same rules otherwise.
 
 ## What does not belong here
 

@@ -66,25 +66,75 @@ and [help wanted](https://github.com/ganesh-786/agrilok/labels/help%20wanted).
 
 ## Development setup
 
-**Prerequisites:** Node 20.18 (see `.nvmrc`), Python 3.12 (see
-`.python-version`), PostgreSQL 15+ with `pgvector`, and a free
-[Gemini API key](https://aistudio.google.com/apikey).
+**Prerequisites:** [uv](https://docs.astral.sh/uv/), which installs Python
+3.12 from `.python-version`; Node 24 (see `.nvmrc`); and, for answers, a free
+[Gemini API key](https://aistudio.google.com/apikey). You do not need to
+install PostgreSQL: `agrilok-db start` runs an embedded Postgres 17 with
+pgvector for development.
 
 ```bash
 git clone https://github.com/ganesh-786/agrilok.git
 cd agrilok
-cp .env.example .env    # fill in GEMINI_API_KEY and DATABASE_URL
+cp .env.example .env                  # add GEMINI_API_KEY; the defaults do the rest
+
+uv sync --all-packages --all-extras
+uv run agrilok-db start               # Postgres + pgvector on 127.0.0.1:54329
+uv run agrilok-db migrate
+uv run agrilok-ingest import-phase0   # the Phase 0 corpus, queued for review
 ```
 
-Per-component setup lives in each component's README:
+Nothing reaches a student until a person admits it
+([ADR-0012](docs/adr/0012-admission-gate-before-serving.md)). To try the app
+locally, admit what is eligible under your own name, then embed it:
+
+```bash
+uv run agrilok-ingest review admit --all-eligible --by @you --self-review --yes
+uv run agrilok-ingest embed --yes     # spends embedding quota
+```
+
+Then start the API and the web app together, with one command, from
+PowerShell, cmd or a Unix shell:
+
+```bash
+node scripts/dev.mjs                  # web on http://localhost:3000, API on :8000
+```
+
+It installs what is missing, starts the local database only if `.env` points
+at it (a hosted one such as Supabase is used as it is), applies pending
+migrations, and waits for the API before starting the web app. Ctrl+C stops
+everything it started. If you would rather run them yourself, in two
+terminals:
+
+```bash
+uv run agrilok-api                    # http://127.0.0.1:8000/v1/health
+cd apps/web && npm install && npm run dev   # http://localhost:3000
+```
+
+Without a Gemini key the library and search still work, and the Ask form
+says live answers are off.
+
+Before a pull request, run the checks CI runs. In each Python component you
+touched (`packages/core`, `apps/api`, `infra`, `services/*`):
+
+```bash
+uv run ruff check . && uv run ruff format --check . && uv run mypy . && uv run pytest -q
+```
+
+and in `apps/web`:
+
+```bash
+npm run lint && npm run typecheck && npm test && npm run format:check && npm run build
+```
+
+Database tests create and drop their own scratch databases on the local
+server, and skip if it is not running. A run that reports skips has not
+tested the database.
+
+Per-component detail lives in each README:
 [apps/web](apps/web/README.md), [apps/api](apps/api/README.md),
-[services/crawler](services/crawler/README.md),
+[infra](infra/README.md), [services/crawler](services/crawler/README.md),
 [services/ingestion](services/ingestion/README.md),
 [services/evaluation](services/evaluation/README.md).
-
-> The project is at Phase 0. Most components are directory stubs. If the setup
-> steps for the part you want to work on do not exist yet, say so in your issue
-> — writing them is itself a welcome contribution.
 
 ## Branching and commits
 

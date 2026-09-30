@@ -1,0 +1,31 @@
+[project]
+name = "agrilok-crawler"
+version = "0.1.0"
+description = "Fetches whitelisted official sources, politely, into the raw archive."
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+license = "MIT"
+dependencies = [
+  "scrapy>=2.11",
+  "pyyaml>=6.0",
+]
+
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/crawler"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+mypy_path = "src"
+explicit_package_bases = true
+
+[[tool.mypy.overrides]]
+module = ["scrapy", "scrapy.*", "twisted", "twisted.*", "itemadapter", "itemadapter.*"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

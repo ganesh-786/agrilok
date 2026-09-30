@@ -1,0 +1,217 @@
+@import "tailwindcss";
+
+/*
+ * agrilok design tokens.
+ *
+ * The palette is taken from the photographs the site uses: terrace green,
+ * clay soil, mustard flowers in the Terai, the warm paper of a printed
+ * syllabus. Every text pair below was checked against WCAG AA (4.5:1) in both
+ * themes. Level 4 is always green and Level 7 always clay, so the two exams
+ * never look alike anywhere on the site.
+ */
+@theme {
+  --color-paper: #f6f1e6;
+  --color-paper-2: #ede5d3;
+  --color-card: #fffcf5;
+  --color-ink: #1a2117;
+  --color-ink-2: #3f4a3a;
+  --color-ink-3: #5c6656;
+  --color-rule: #d8cdb6;
+  --color-field: #2d5a32;
+  --color-field-2: #234829;
+  --color-field-tint: #e2eadb;
+  --color-clay: #95391d;
+  --color-clay-2: #7a2e17;
+  --color-clay-tint: #f3e0d6;
+  --color-mustard: #d6a019;
+  --color-mustard-tint: #f7e9c0;
+  --color-on-mustard: #1a2117;
+  --color-warn: #7a4e00;
+  --color-ok: #27613a;
+  --color-ok-tint: #e2eadb;
+  --color-rhodo: #a42a20;
+
+  --font-sans: var(--font-mukta), "Nirmala UI", "Noto Sans Devanagari", system-ui, sans-serif;
+  --font-serif: var(--font-martel), "Noto Serif Devanagari", Georgia, serif;
+
+  --radius-card: 0.5rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-paper: #121611;
+    --color-paper-2: #181d16;
+    --color-card: #1b2118;
+    --color-ink: #ece6d8;
+    --color-ink-2: #cbc4b3;
+    --color-ink-3: #a2a796;
+    --color-rule: #343c2f;
+    --color-field: #8fc286;
+    --color-field-2: #a9d4a0;
+    --color-field-tint: #1f2c1f;
+    --color-clay: #e7a487;
+    --color-clay-2: #f0b89f;
+    --color-clay-tint: #33211a;
+    --color-mustard: #e2b23f;
+    --color-mustard-tint: #3a2f12;
+    --color-on-mustard: #121611;
+    --color-warn: #f2c66e;
+    --color-ok: #9fd19a;
+    --color-ok-tint: #1f2c1f;
+    --color-rhodo: #f29285;
+  }
+}
+
+@layer base {
+  html {
+    background: var(--color-paper);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    /* 17px: Devanagari needs a little more size than Latin to read well on a phone. */
+    font-size: 106.25%;
+    -webkit-text-size-adjust: 100%;
+    text-rendering: optimizeLegibility;
+  }
+  body {
+    /* Tall matras and conjuncts collide at the default line height. */
+    line-height: 1.7;
+    min-height: 100dvh;
+    /* Official titles run long without spaces ("Extension/Horticulture/
+       Agronomy/..."). Without this one word could widen a whole page past a
+       phone screen. It only breaks a word that cannot fit on its own line. */
+    overflow-wrap: anywhere;
+  }
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-serif);
+    line-height: 1.3;
+    text-wrap: balance;
+  }
+  p {
+    text-wrap: pretty;
+  }
+  a {
+    color: inherit;
+  }
+  ::selection {
+    background: var(--color-mustard-tint);
+    color: var(--color-ink);
+  }
+  :focus-visible {
+    outline: 3px solid var(--color-mustard);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation: none !important;
+      transition: none !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer components {
+  .wrap {
+    width: 100%;
+    max-width: 72rem;
+    margin-inline: auto;
+    padding-inline: 1rem;
+  }
+  @media (min-width: 48rem) {
+    .wrap {
+      padding-inline: 2rem;
+    }
+  }
+
+  /* A printed-guide rule between sections: a hairline, not a card shadow. */
+  .rule {
+    border-top: 1px solid var(--color-rule);
+  }
+
+  .link {
+    color: var(--color-field);
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.2em;
+  }
+  .link:hover {
+    text-decoration-thickness: 2px;
+  }
+
+  .eyebrow {
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    color: var(--color-ink-3);
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    min-height: 2.75rem;
+    padding: 0.5rem 1.1rem;
+    border-radius: 0.375rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: background-color 120ms ease;
+    cursor: pointer;
+  }
+  .btn-primary {
+    background: var(--color-field);
+    color: var(--color-paper);
+  }
+  .btn-primary:hover {
+    background: var(--color-field-2);
+  }
+  .btn-quiet {
+    border: 1px solid var(--color-rule);
+    background: var(--color-card);
+    color: var(--color-ink);
+  }
+  .btn-quiet:hover {
+    border-color: var(--color-ink-3);
+  }
+  .btn[disabled] {
+    opacity: 0.6;
+    cursor: progress;
+  }
+
+  .field {
+    width: 100%;
+    border: 1px solid var(--color-rule);
+    border-radius: 0.375rem;
+    background: var(--color-card);
+    color: var(--color-ink);
+    padding: 0.6rem 0.75rem;
+    font: inherit;
+  }
+  .field:focus {
+    border-color: var(--color-field);
+    outline: none;
+    box-shadow: 0 0 0 3px var(--color-field-tint);
+  }
+
+  /* Citation markers in an answer: small, tappable, never mistaken for text. */
+  .cite {
+    font-size: 0.72em;
+    font-weight: 700;
+    vertical-align: super;
+    line-height: 0;
+    padding-inline: 0.12em;
+    color: var(--color-field);
+    text-decoration: none;
+  }
+  .cite:hover {
+    text-decoration: underline;
+  }
+
+  .num-ne {
+    font-feature-settings: "locl";
+  }
+}

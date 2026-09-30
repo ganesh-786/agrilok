@@ -1,0 +1,21 @@
+# Build contexts are the repository root. Keep out anything large, private or
+# irrelevant to an image: local databases, secrets, the raw corpus, node_modules.
+.git
+.env
+.env.*
+!.env.example
+.local
+.venv
+**/__pycache__
+**/.pytest_cache
+**/.mypy_cache
+**/.ruff_cache
+**/node_modules
+**/.next
+data/raw
+data/derived
+spike/corpus
+spike/node_modules
+spike/reports
+services/evaluation/reports
+*.pdf

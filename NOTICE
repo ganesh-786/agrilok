@@ -9,6 +9,7 @@ Copyright (c) 2026 Ganesh Chaudhary and the agrilok contributors
   Documentation, study content, datasets ..... CC BY-SA 4.0     -> LICENSE-CONTENT
   Third-party government documents ........... NOT RELICENSED   -> section 2 below
   Third-party dependencies ................... their own terms  -> section 4 below
+  Photographs and fonts in the web app ....... their own terms  -> section 5 below
 
 When a single file mixes code and prose, the code license (MIT) governs.
 
@@ -77,27 +78,56 @@ without notice. The official notice always governs. Verify before you rely.
 ================================================================================
 
 This project depends on third-party open-source software distributed under its
-own licenses, including (non-exhaustive, resolved at build time):
+own licenses. The direct dependencies in use (resolved at build time; the
+lockfiles are authoritative):
 
   Next.js, React, Tailwind CSS ............... MIT
-  FastAPI, Pydantic, Uvicorn ................. MIT / BSD-3-Clause
+  sharp (image resizing, via Next.js) ........ Apache-2.0; its bundled libvips
+                                               is LGPL-3.0-or-later
+  FastAPI, Pydantic, pydantic-settings ....... MIT
+  Uvicorn, Starlette, HTTPX .................. BSD-3-Clause
+  psycopg, psycopg-pool ...................... LGPL-3.0-only (see note below)
+  pypdfium2 (PDF text extraction) ............ BSD-3-Clause / Apache-2.0
   Scrapy ..................................... BSD-3-Clause
-  PyMuPDF .................................... AGPL-3.0 (see caution below)
-  pdfplumber, pypdfium2 ...................... MIT / BSD-3-Clause / Apache-2.0
-  Tesseract OCR .............................. Apache-2.0
+  Twisted, PyYAML, sentry-sdk ................ MIT
   PostgreSQL ................................. PostgreSQL License
   pgvector ................................... PostgreSQL License
-  Redis / Valkey client libraries ............ MIT / BSD-3-Clause
+  pgembed (local development database only) .. Apache-2.0
 
-CAUTION — PyMuPDF is AGPL-3.0. Linking it into a network-served backend can
-oblige this project to offer that backend's complete corresponding source under
-the AGPL. agrilok is open source, so this is survivable, but it is a real
-constraint on anyone who forks this privately. If that is a problem for your
-deployment, use pdfplumber or pypdfium2 instead; the extraction interface is
-designed to allow that substitution. This trade-off is recorded in
-docs/adr/0002-text-layer-before-ocr.md.
+NOTE — psycopg and the libvips inside sharp are LGPL-3.0. Both are used as
+unmodified libraries, installed from their published packages and loaded at run
+time, which the LGPL permits in software under any license. A fork that
+modifies either library itself must publish those modifications.
+
+CAUTION — PyMuPDF is AGPL-3.0, and for that reason this project does not use
+it. Linking it into a network-served backend can oblige this project to offer
+that backend's complete corresponding source under the AGPL. Text extraction
+uses pypdfium2 instead, which recovered the same Devanagari on the real corpus.
+OCR (Tesseract, Apache-2.0) is planned but not yet used. This trade-off is
+recorded in docs/adr/0002-text-layer-before-ocr.md.
 
 Authoritative dependency license information comes from the lockfiles, not from
 this list. Regenerate it before any release:
 
   scripts/check-licenses.sh
+
+================================================================================
+5. PHOTOGRAPHS AND FONTS IN THE WEB APP
+================================================================================
+
+The photographs in apps/web/assets/photos/ are not the project's. Each is
+openly licensed on Wikimedia Commons, was only resized and re-encoded for the
+web, and is credited on the site's /credits page from
+apps/web/content/photos.ts:
+
+  Mustard terraces, Raniban, Gandaki ... Timothy A. Gonsalves ... CC BY-SA 4.0
+  Ripe paddy, Dolakha .................. Shantiram Subedi ....... CC BY-SA 4.0
+  Terraces, south of Ghara ............. Greg Willis ............ CC BY-SA 2.0
+  Harvesting paddy, Dhading ............ Bhawana Gurung ......... CC BY-SA 4.0
+  Paddy terraces in autumn ............. Sasmit Adhikari ........ CC BY 4.0
+
+The source page for each is recorded next to its credit in photos.ts. Reusing
+a photograph means following its own license, not this project's.
+
+Fonts: Mukta (Ek Type) and Martel (Dan Reynolds), both under the SIL Open Font
+License 1.1, served from the app's own origin through next/font.

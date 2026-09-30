@@ -2,11 +2,48 @@
 
 ## Where the project is now
 
-**Phase 0 - validation spike. Not started.**
+**Phase 1 - MVP, started 2026-09-24 with one gate box still open.**
 
-There is no application code. The repository is scaffolding: structure,
-governance, agent context and CI. The gate below has **not** been cleared, and
-production pipeline code does not begin until it is.
+The Phase 0 spike ran, and four of the five gate boxes below are ticked or
+deferred on the record. The Level 7 past-paper box is still open: no real
+Level 7 paper with an official answer key has been found. The owner chose to
+start Phase 1 anyway; that exception, its conditions and what would show it
+was wrong are in
+[ADR-0010](adr/0010-start-phase-1-with-the-level-7-box-open.md). The box
+stays unticked until the paper is in the golden set.
+
+**Built so far, and running locally; nothing is deployed:**
+
+- Ingestion with the admission gate in the path: nothing is retrievable until
+  a named person admits it
+  ([ADR-0012](adr/0012-admission-gate-before-serving.md)). Text-layer
+  extraction only; a scanned PDF is reported, not ingested.
+- Retrieval with a keyword side
+  ([ADR-0013](adr/0013-keyword-retrieval-as-a-bm25-term-index.md)), the support
+  check, the quota governor and the answer cache, all in `packages/core`.
+- The API and the web app: the syllabus library for each level, keyword
+  search, Ask with numbered citations, pre-generated answers, and saving a
+  level for offline reading. Nepali first, English one tap away.
+- The golden-set harness and its gate, run through the same pipeline
+  students use. The gate holds at 13 of 13 and 20 of 20
+  ([evaluation.md](evaluation.md#phase-1)).
+- A whitelisted crawler, never yet run against a live site.
+
+**Still open before Phase 1 can exit:**
+
+1. The Level 7 past-paper box above.
+2. The answer can say more than the claims the support check verifies
+   ([evaluation.md](evaluation.md#open-the-check-only-sees-the-claims-the-model-lists)).
+   This is a faithfulness gap, so it comes first. Close behind it, the
+   check cannot match dotted numbers such as section 3.1, so it withholds
+   correct answers at random
+   ([evaluation.md](evaluation.md#open-the-number-rule-cannot-see-dotted-numbers)).
+3. The evaluation key and database set as repository secrets, and
+   `evaluate.yml` made a required check.
+4. Documents admitted and read by a person. No document is `verified` yet.
+5. Hosting chosen and a first deployment, with the cache hit rate and daily
+   quota burn watched from day one.
+6. A first live crawl of an approved source, started by hand.
 
 ---
 
@@ -54,7 +91,7 @@ evidence.
       under the corrected prompt on `gemini-3.1-flash-lite` specifically -
       confirmed a model-capability ceiling, not a prompt gap, by sending the
       identical prompt and context to two other models in the same family,
-      both of which correctly refused. Per [CLAUDE.md](../CLAUDE.md),
+      both of which correctly refused. Per [the evaluation gate](evaluation.md#the-gate),
       faithfulness never regresses - a drop is a blocking bug, not a
       trade-off, and hitting the count of questions the gate names does not
       override a confirmed failure sitting inside that count.
@@ -72,7 +109,7 @@ evidence.
       claimed federal sitting could not be corroborated, the other has no
       source at all and an answer key that contradicts its own note. They
       are kept in a separate unverified tier that is never counted here.
-- [ ] Current, **in-force** syllabus PDFs confirmed for both levels - verified
+- [x] Current, **in-force** syllabus PDFs confirmed for both levels - verified
       against the freshest official notice, not a third-party blog or summary.
       Syllabi get revised; anything cited during research needs a fresh check.
       **Not confirmed, one new piece of evidence.** The most recent federal
@@ -93,6 +130,18 @@ evidence.
       URLs since first fetched. It does not show that no newer syllabus has
       been published; that still needs the latest notice on each
       commission's course list.
+      **Confirmed by the project owner 2026-09-24.** @ganesh-786 browsed the
+      full syllabus lists on ppsc.lumbini.gov.np and psc.gov.np and
+      confirmed that, for agriculture, nothing is newer than the files in
+      the corpus. Six links from that check were fetched the same day: four
+      (`FED-10`, `LUM-01`, `LUM-02`, `LUM-04`) are byte-identical to the
+      corpus copies, so none has been revised since first fetched. Two are
+      Lumbini Level 7 groups not yet in the corpus, Fisheries and Food,
+      Nutrition and Quality Control (both files from 2021). They are typed
+      in a legacy Preeti font that extracts as unreadable text, so adding
+      them needs a font conversion step first; that is corpus work, not a
+      gate item. This box rests on one person's check of two lists, which
+      is what it asks for, and should be redone before each exam season.
 - [ ] Free-tier capacity math redone with **real pilot numbers** once a waitlist
       exists. A back-of-envelope estimate is not a plan.
       **Partial, real data, not yet a plan.** The live AI Studio quota

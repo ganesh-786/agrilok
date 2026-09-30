@@ -1,0 +1,44 @@
+[project]
+name = "agrilok-api"
+version = "0.1.0"
+description = "The agrilok HTTP API: library, search and cited answers."
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+license = "MIT"
+dependencies = [
+  "agrilok-core",
+  "fastapi>=0.115",
+  "uvicorn[standard]>=0.32",
+]
+
+[project.optional-dependencies]
+# Error reporting. Imported only when SENTRY_DSN is set.
+observability = ["sentry-sdk[fastapi]>=2.18"]
+
+[project.scripts]
+agrilok-api = "agrilok_api.run:main"
+
+[tool.uv.sources]
+agrilok-core = { workspace = true }
+
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/agrilok_api"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+mypy_path = "src"
+explicit_package_bases = true
+
+[[tool.mypy.overrides]]
+module = ["sentry_sdk", "sentry_sdk.*"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
