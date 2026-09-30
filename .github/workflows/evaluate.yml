@@ -41,7 +41,7 @@ jobs:
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY_EVAL }}
       DATABASE_URL: ${{ secrets.DATABASE_URL_EVAL }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Check the evaluation secrets are available
         id: guard
