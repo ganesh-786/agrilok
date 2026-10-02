@@ -10,3 +10,10 @@ export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3
   "",
 );
 export const REPO_URL = "https://github.com/ganesh-786/agrilok";
+
+// The band across every study page that says the content is demo material.
+// Off while the app runs only on its developers' machines (owner, 2026-10-01),
+// where there is nobody to mislead. Every demo item still carries its own
+// "Demo" label. Set AGRILOK_DEMO_BANNER=1 before anyone outside the team can
+// reach a build that still serves demo content.
+export const SHOW_DEMO_BANNER = process.env.AGRILOK_DEMO_BANNER === "1";

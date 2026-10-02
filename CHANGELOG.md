@@ -70,6 +70,36 @@ in two groups where relevant:
   secrets are configured, and warns that a person must check by hand when
   they are not.
 - Setup needs uv and Node 24. Postgres comes embedded for development.
+- The student app is rebuilt around one exam at a time. A student chooses a
+  level, commission and service group once, and Home, Syllabus, Practice,
+  Updates and Ask all belong to that exam. It runs on labelled demo content
+  until the API is connected; the syllabus structure, marks and rules come
+  from the two Lumbini syllabi. See `docs/student-experience.md`.
+  - The exam is named and changed in one bar, which steps aside while
+    scrolling down. Level 4 and Level 7 each have their own action colour.
+  - Practice keeps progress on the device, brings mistakes back after 1, 3, 7
+    and 14 days, and shows progress per subject.
+  - A change of exam is confirmed by a message that leaves by itself.
+  - Browser tests (`npm run test:e2e`) cover navigation, changing exam,
+    reflow in both languages and themes, and the service worker.
+
+### Removed
+- From the student pages, while they run on demo content: the live search
+  page, and live answers in Ask. A written question is answered from the
+  syllabus and the demo study notes, or refused. The API, the pipeline and the
+  stored answer and document pages are unchanged, and the live path returns
+  when the API is connected.
+- Lite mode. It hid photographs for a browser asking to save data; the app now
+  serves each photograph at the size the screen needs.
+
+### Fixed
+- The service worker kept every file under `/_next/static` for ever. A browser
+  that had opened a production build on `localhost` then drew later
+  development pages with an old stylesheet and old scripts. It now keeps only
+  files the server marks immutable, and a browser left in that state heals on
+  its next visit.
+- Library reads from the web server have a five second budget, so a stalled
+  API can no longer hold a page or the language switch for two minutes.
 
 ### Content & sources
 - The golden set moved to `data/golden-set`: 13 pipeline smoke tests, 20 real

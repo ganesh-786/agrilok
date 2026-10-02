@@ -11,8 +11,10 @@ export default function manifest(): MetadataRoute.Manifest {
     scope: "/",
     display: "standalone",
     orientation: "portrait",
-    background_color: "#f6f1e6",
-    theme_color: "#2d5a32",
+    // The paper canvas from app/globals.css. The splash screen and the
+    // installed app's title bar stay the page's own colour.
+    background_color: "#ffffff",
+    theme_color: "#ffffff",
     categories: ["education"],
     icons: [
       { src: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },

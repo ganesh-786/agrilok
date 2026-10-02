@@ -4,7 +4,11 @@ import { api } from "@/lib/api";
 import { SITE_URL } from "@/lib/config";
 import type { LevelCode } from "@/lib/types";
 
-export const revalidate = 3600;
+// The document catalogue is served by the API, which is not required to be
+// running while the web application is being built. Generate this at request
+// time so production builds remain deterministic and the catalogue can stay
+// current without rebuilding the web app.
+export const dynamic = "force-dynamic";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const pages = ["/", "/level-4", "/level-7", "/sources", "/how-it-works", "/privacy", "/credits"];
