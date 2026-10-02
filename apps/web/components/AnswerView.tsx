@@ -1,13 +1,13 @@
 import Link from "next/link";
 
-import { ExternalLink, Flag } from "@/components/Icons";
+import { Flag } from "@/components/Icons";
+import { OfficialDocumentLink } from "@/components/DocumentList";
 import { SlashBreaks } from "@/components/SlashBreaks";
 import { parseAnswer, type Inline } from "@/lib/answer-text";
+import { REPO_URL } from "@/lib/config";
 import { formatDate, localDigits } from "@/lib/format";
 import type { Dictionary, Lang } from "@/lib/i18n";
 import type { AskResponse, Citation } from "@/lib/types";
-
-const REPO_URL = "https://github.com/ganesh-786/agrilok";
 
 type Labels = Dictionary["answer"];
 
@@ -34,13 +34,13 @@ function ReviewLine({ result, labels, lang }: { result: AskResponse; labels: Lab
   const verified = result.review.state === "verified";
   return (
     <div
-      className={`rounded-[var(--radius-card)] border px-3.5 py-2.5 text-sm ${
+      className={`rounded-lg border p-4 text-small ${
         verified
-          ? "border-ok/40 bg-ok-tint text-ink"
-          : "border-dashed border-warn/60 bg-mustard-tint text-ink"
+          ? "border-success/40 bg-success-tint text-ink"
+          : "border-dashed border-warning/60 bg-warning-tint text-ink"
       }`}
     >
-      <p className={`font-bold ${verified ? "text-ok" : "text-warn"}`}>
+      <p className={`font-semibold ${verified ? "text-success" : "text-warning"}`}>
         {verified ? labels.reviewVerified : labels.reviewPending}
       </p>
       {verified ? (
@@ -61,17 +61,22 @@ function CitationItem({
   prefix,
   labels,
   lang,
+  sourceLabels,
 }: {
   citation: Citation;
   prefix: string;
   labels: Labels;
   lang: Lang;
+  sourceLabels: Pick<Dictionary, "source" | "common">;
 }) {
   const reference = citation.doc_class === "reference";
   return (
-    <li id={`${prefix}-cite-${citation.n}`} className="scroll-mt-24 border-t border-rule pt-3">
+    <li
+      id={`${prefix}-cite-${citation.n}`}
+      className="border-t border-line pt-4 first:border-t-0 first:pt-0"
+    >
       <div className="flex gap-3">
-        <span className="font-serif text-lg font-extrabold text-field" aria-hidden="true">
+        <span className="code text-lead" aria-hidden="true">
           {localDigits(citation.n, lang)}
         </span>
         <div className="min-w-0 flex-1 space-y-1.5">
@@ -80,7 +85,7 @@ function CitationItem({
               <SlashBreaks text={citation.document_title} />
             </Link>
           </p>
-          <p className="text-xs text-ink-3">
+          <p className="text-caption text-ink-3">
             {reference ? labels.referenceDoc : labels.syllabusDoc}
             {citation.authority ? ` · ${citation.authority}` : ""}
             {citation.fetched_on
@@ -90,23 +95,22 @@ function CitationItem({
           {citation.quotes.map((quote, i) => (
             <blockquote
               key={i}
-              className="border-l-2 border-mustard bg-card px-3 py-1.5 text-[0.92rem] text-ink-2"
+              className="border-l-2 border-ink bg-sunken px-4 py-3 text-small text-ink-2"
             >
               <span className="sr-only">{labels.quote}: </span>
               {quote}
             </blockquote>
           ))}
-          <p className="text-sm">
-            <a
-              href={citation.resolvable_url}
-              className="link inline-flex items-center gap-1"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              {labels.officialDoc}
-              <ExternalLink className="h-3.5 w-3.5" />
-            </a>
+          <p
+            className={`text-small font-semibold ${citation.review_state === "verified" ? "text-success" : "text-warning"}`}
+          >
+            {citation.review_state === "verified" ? labels.reviewVerified : labels.reviewPending}
           </p>
+          <OfficialDocumentLink
+            href={citation.resolvable_url}
+            label={labels.officialDoc}
+            t={sourceLabels}
+          />
         </div>
       </div>
     </li>
@@ -120,6 +124,8 @@ export function AnswerView({
   lang,
   siteUrl,
   prefix = "a",
+  sourceLabels,
+  headingLevel = 3,
 }: {
   result: AskResponse;
   asked?: string;
@@ -127,9 +133,12 @@ export function AnswerView({
   lang: Lang;
   siteUrl: string;
   prefix?: string;
+  sourceLabels: Pick<Dictionary, "source" | "common">;
+  headingLevel?: 1 | 3;
 }) {
   const blocks = result.answer_text ? parseAnswer(result.answer_text) : [];
   const answered = result.status === "answered";
+  const Heading = headingLevel === 1 ? "h1" : "h3";
   // GitHub issue forms fill a field from a query parameter named after its id.
   const where = result.id ? `${siteUrl}/answers/${result.id}` : siteUrl;
   const reportUrl =
@@ -138,25 +147,28 @@ export function AnswerView({
     `&where=${encodeURIComponent(where)}`;
 
   return (
-    <article className="space-y-5" aria-live="polite">
+    <article className="space-y-6" aria-live="polite">
       {asked && asked !== result.question && result.cache.kind === "similar" ? (
-        <p className="text-sm text-ink-3">
+        <p className="text-small text-ink-3">
           {labels.youAsked}: <span className="text-ink-2">{asked}</span>
         </p>
       ) : null}
 
+      {headingLevel === 1 || result.cache.kind !== "similar" || !result.cache.matched_question ? (
+        <Heading className={headingLevel === 1 ? "text-headline" : "text-title"}>
+          {result.question}
+        </Heading>
+      ) : null}
       {result.cache.kind === "similar" && result.cache.matched_question ? (
-        <p className="rounded-[var(--radius-card)] border border-rule bg-card px-3.5 py-2.5 text-sm">
+        <p className="rounded-lg border border-line bg-sunken px-4 py-3 text-small">
           {labels.similarNote}{" "}
           <span className="font-semibold">“{result.cache.matched_question}”</span>
         </p>
-      ) : (
-        <h3 className="font-serif text-xl font-bold leading-snug">{result.question}</h3>
-      )}
+      ) : null}
 
       {answered ? (
         <>
-          <div className="space-y-3 text-[1.02rem] leading-[1.8]">
+          <div className="max-w-prose space-y-4 leading-[1.85]">
             {blocks.map((block, i) =>
               block.kind === "paragraph" ? (
                 <p key={i}>
@@ -175,10 +187,10 @@ export function AnswerView({
           </div>
           <ReviewLine result={result} labels={labels} lang={lang} />
           <section aria-labelledby={`${prefix}-sources`} className="space-y-3">
-            <h4 id={`${prefix}-sources`} className="eyebrow uppercase">
+            <h2 id={`${prefix}-sources`} className="text-title">
               {labels.sources}
-            </h4>
-            <ol className="space-y-3">
+            </h2>
+            <ol className="space-y-4">
               {result.citations.map((citation) => (
                 <CitationItem
                   key={citation.n}
@@ -186,6 +198,7 @@ export function AnswerView({
                   prefix={prefix}
                   labels={labels}
                   lang={lang}
+                  sourceLabels={sourceLabels}
                 />
               ))}
             </ol>
@@ -193,19 +206,19 @@ export function AnswerView({
         </>
       ) : (
         <div className="space-y-3">
-          <div className="rounded-[var(--radius-card)] border border-rule bg-card px-4 py-3">
-            <p className="font-bold">{labels.refusalTitle}</p>
+          <div className="rounded-xl border border-line bg-surface px-4 py-3">
+            <p className="font-semibold">{labels.refusalTitle}</p>
             <p className="text-ink-2">
               {result.reason ? labels.reasons[result.reason.code] : labels.reasons.no_sources}
             </p>
             {result.reason?.code === "quota" && result.retry_after ? (
-              <p className="mt-1 text-sm text-ink-3">
+              <p className="mt-1 text-small text-ink-3">
                 {labels.retryAfter} {formatDate(result.retry_after, lang)}
               </p>
             ) : null}
           </div>
           {result.consulted.length ? (
-            <div className="space-y-1.5 text-sm">
+            <div className="space-y-1.5 text-small">
               <p className="font-semibold">{labels.consultedTitle}</p>
               <p className="text-ink-3">{labels.consultedLead}</p>
               <ul className="space-y-1">
@@ -225,7 +238,7 @@ export function AnswerView({
         </div>
       )}
 
-      <p className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-ink-3">
+      <p className="flex flex-wrap gap-x-4 gap-y-1 text-small text-ink-3">
         {result.id ? (
           <Link href={`/answers/${result.id}`} className="link">
             {labels.permalink}

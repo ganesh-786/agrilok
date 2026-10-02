@@ -1,91 +1,324 @@
 @import "tailwindcss";
 
-/*
- * agrilok design tokens.
- *
- * The palette is taken from the photographs the site uses: terrace green,
- * clay soil, mustard flowers in the Terai, the warm paper of a printed
- * syllabus. Every text pair below was checked against WCAG AA (4.5:1) in both
- * themes. Level 4 is always green and Level 7 always clay, so the two exams
- * never look alike anywhere on the site.
- */
+/* Ink on paper, with the exam's colour for what can be pressed. Text is one
+   blue-black ink. Buttons, links and selected controls take the colour of the
+   exam on screen (Level 4 blue, Level 7 violet), and the brand green outside
+   an exam. Correct, wrong and waiting for review each keep one colour of their
+   own, and every meaning is also written in words. The measured pairs are in
+   lib/design.test.ts; the reasoning is in docs/design-system.md and
+   docs/student-experience.md, section 7.
+
+   The four blocks below are one light set and one dark set, each declared
+   twice: once for the system preference and once for an explicit choice. */
 @theme {
-  --color-paper: #f6f1e6;
-  --color-paper-2: #ede5d3;
-  --color-card: #fffcf5;
-  --color-ink: #1a2117;
-  --color-ink-2: #3f4a3a;
-  --color-ink-3: #5c6656;
-  --color-rule: #d8cdb6;
-  --color-field: #2d5a32;
-  --color-field-2: #234829;
-  --color-field-tint: #e2eadb;
-  --color-clay: #95391d;
-  --color-clay-2: #7a2e17;
-  --color-clay-tint: #f3e0d6;
-  --color-mustard: #d6a019;
-  --color-mustard-tint: #f7e9c0;
-  --color-on-mustard: #1a2117;
-  --color-warn: #7a4e00;
-  --color-ok: #27613a;
-  --color-ok-tint: #e2eadb;
-  --color-rhodo: #a42a20;
+  --color-canvas: #ffffff;
+  --color-surface: #ffffff;
+  --color-sunken: #f1f3f6;
+  --color-ink: #0e1726;
+  --color-ink-2: #39465c;
+  --color-ink-3: #5a667b;
+  --color-line: #dde2e8;
+  --color-line-strong: #77839a;
+  --color-brand: #1b5e45;
+  --color-brand-hover: #134a36;
+  --color-on-brand: #ffffff;
+  --color-brand-ink: #1b5e45;
+  --color-brand-tint: #e6f2ec;
+  --color-focus: #1d5fd6;
+  --color-l4: #1a6dc0;
+  --color-l4-hover: #155a9f;
+  --color-on-l4: #ffffff;
+  --color-l4-ink: #175fa8;
+  --color-l4-tint: #e8f1fb;
+  --color-l7: #3f1d82;
+  --color-l7-hover: #532da3;
+  --color-on-l7: #ffffff;
+  --color-l7-ink: #3f1d82;
+  --color-l7-tint: #efebf9;
+  --color-success: #19703f;
+  --color-success-tint: #e2f2e7;
+  --color-warning: #8a5300;
+  --color-warning-tint: #fcefd6;
+  --color-danger: #b3261e;
+  --color-danger-tint: #fde9e6;
+  --color-logo: #1b5e45;
+  --color-on-logo: #ffffff;
+  --color-brand-hero: #1b5e45;
+  --color-l4-hero: #175fa8;
+  --color-l7-hero: #3f1d82;
+  --color-on-hero: #ffffff;
+  --color-on-hero-2: #e3e9f2;
 
-  --font-sans: var(--font-mukta), "Nirmala UI", "Noto Sans Devanagari", system-ui, sans-serif;
-  --font-serif: var(--font-martel), "Noto Serif Devanagari", Georgia, serif;
+  /* What a button, a link and a selected control are drawn in. Outside an exam
+     it is the brand green of the logo; inside one the study shell replaces it
+     with that exam's own colour, so the interface itself says which exam this
+     is. Level 4 and Level 7 can then never be mistaken for each other. */
+  --color-action: var(--color-brand);
+  --color-action-hover: var(--color-brand-hover);
+  --color-on-action: var(--color-on-brand);
+  --color-action-ink: var(--color-brand-ink);
+  --color-action-tint: var(--color-brand-tint);
+  /* The filled block that holds a screen's next step. In a light theme it is
+     the exam's colour itself; in a dark one a deep shade of it, because a
+     large pale block on a dark page glares. */
+  --color-hero: var(--color-brand-hero);
 
-  --radius-card: 0.5rem;
+  /* The exam a study screen belongs to. The study shell sets these from the
+     level in the URL; outside an exam they are plain ink. */
+  --color-level: var(--color-ink);
+  --color-on-level: var(--color-canvas);
+  --color-level-ink: var(--color-ink);
+
+  --font-sans:
+    var(--font-latin), var(--font-devanagari), "Noto Sans Devanagari", "Nirmala UI", system-ui,
+    sans-serif;
+  --font-display:
+    var(--font-serif-latin), var(--font-serif-devanagari), "Noto Serif Devanagari",
+    var(--font-devanagari), "Nirmala UI", serif;
+
+  --text-caption: 0.85rem;
+  --text-caption--line-height: 1.6;
+  --text-small: 0.925rem;
+  --text-small--line-height: 1.65;
+  --text-lead: 1.1rem;
+  --text-lead--line-height: 1.7;
+  --text-title: 1.25rem;
+  --text-title--line-height: 1.5;
+  --text-headline: 1.6rem;
+  --text-headline--line-height: 1.42;
+  --text-display: clamp(1.75rem, 1.5rem + 1.1vw, 2.3rem);
+  --text-display--line-height: 1.38;
+
+  --radius-md: 0.375rem;
+  --radius-lg: 0.5rem;
+  --radius-xl: 0.75rem;
+  --radius-2xl: 1rem;
+
+  --shadow-bar: 0 -1px 0 0 var(--color-line), 0 -10px 24px -18px rgb(14 23 38 / 0.28);
+  --shadow-sheet: 0 -12px 40px -12px rgb(0 0 0 / 0.35);
+  /* A panel lifts a hair off the paper; a toast floats well above it. */
+  --shadow-panel: 0 1px 2px rgb(14 23 38 / 0.05);
+  --shadow-toast: 0 10px 30px -10px rgb(14 23 38 / 0.35), 0 2px 6px rgb(14 23 38 / 0.12);
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
-    --color-paper: #121611;
-    --color-paper-2: #181d16;
-    --color-card: #1b2118;
-    --color-ink: #ece6d8;
-    --color-ink-2: #cbc4b3;
-    --color-ink-3: #a2a796;
-    --color-rule: #343c2f;
-    --color-field: #8fc286;
-    --color-field-2: #a9d4a0;
-    --color-field-tint: #1f2c1f;
-    --color-clay: #e7a487;
-    --color-clay-2: #f0b89f;
-    --color-clay-tint: #33211a;
-    --color-mustard: #e2b23f;
-    --color-mustard-tint: #3a2f12;
-    --color-on-mustard: #121611;
-    --color-warn: #f2c66e;
-    --color-ok: #9fd19a;
-    --color-ok-tint: #1f2c1f;
-    --color-rhodo: #f29285;
+  :root:not([data-theme="light"]) {
+    --color-canvas: #0f141b;
+    --color-surface: #161c26;
+    --color-sunken: #1e2633;
+    --color-ink: #eef1f5;
+    --color-ink-2: #c3cad5;
+    --color-ink-3: #9aa4b4;
+    --color-line: #2a3442;
+    --color-line-strong: #6f7c90;
+    --color-brand: #8cddb0;
+    --color-brand-hover: #abe8c6;
+    --color-on-brand: #10151d;
+    --color-brand-ink: #8cddb0;
+    --color-brand-tint: #16302a;
+    --color-focus: #8ab4ff;
+    --color-l4: #7fb6f0;
+    --color-l4-hover: #a3cbf5;
+    --color-on-l4: #0f141b;
+    --color-l4-ink: #7fb6f0;
+    --color-l4-tint: #172a40;
+    --color-l7: #7a5bd8;
+    --color-l7-hover: #6a4ac9;
+    --color-on-l7: #ffffff;
+    --color-l7-ink: #b9a5f2;
+    --color-l7-tint: #251d44;
+    --color-success: #7ad4c0;
+    --color-success-tint: #14302b;
+    --color-warning: #f2c46c;
+    --color-warning-tint: #35290f;
+    --color-danger: #f4a197;
+    --color-danger-tint: #3a1f1c;
+    --color-logo: #8cddb0;
+    --color-on-logo: #10151d;
+    --color-brand-hero: #1f5c46;
+    --color-l4-hero: #1b4f86;
+    --color-l7-hero: #3b2585;
+    --color-on-hero: #f2f5f9;
+    --color-on-hero-2: #c9d2df;
   }
+}
+
+:root[data-theme="dark"] {
+  --color-canvas: #0f141b;
+  --color-surface: #161c26;
+  --color-sunken: #1e2633;
+  --color-ink: #eef1f5;
+  --color-ink-2: #c3cad5;
+  --color-ink-3: #9aa4b4;
+  --color-line: #2a3442;
+  --color-line-strong: #6f7c90;
+  --color-brand: #8cddb0;
+  --color-brand-hover: #abe8c6;
+  --color-on-brand: #10151d;
+  --color-brand-ink: #8cddb0;
+  --color-brand-tint: #16302a;
+  --color-focus: #8ab4ff;
+  --color-l4: #7fb6f0;
+  --color-l4-hover: #a3cbf5;
+  --color-on-l4: #0f141b;
+  --color-l4-ink: #7fb6f0;
+  --color-l4-tint: #172a40;
+  --color-l7: #7a5bd8;
+  --color-l7-hover: #6a4ac9;
+  --color-on-l7: #ffffff;
+  --color-l7-ink: #b9a5f2;
+  --color-l7-tint: #251d44;
+  --color-success: #7ad4c0;
+  --color-success-tint: #14302b;
+  --color-warning: #f2c46c;
+  --color-warning-tint: #35290f;
+  --color-danger: #f4a197;
+  --color-danger-tint: #3a1f1c;
+  --color-logo: #8cddb0;
+  --color-on-logo: #10151d;
+  --color-brand-hero: #1f5c46;
+  --color-l4-hero: #1b4f86;
+  --color-l7-hero: #3b2585;
+  --color-on-hero: #f2f5f9;
+  --color-on-hero-2: #c9d2df;
+}
+
+:root[data-theme="light"] {
+  --color-canvas: #ffffff;
+  --color-surface: #ffffff;
+  --color-sunken: #f1f3f6;
+  --color-ink: #0e1726;
+  --color-ink-2: #39465c;
+  --color-ink-3: #5a667b;
+  --color-line: #dde2e8;
+  --color-line-strong: #77839a;
+  --color-brand: #1b5e45;
+  --color-brand-hover: #134a36;
+  --color-on-brand: #ffffff;
+  --color-brand-ink: #1b5e45;
+  --color-brand-tint: #e6f2ec;
+  --color-focus: #1d5fd6;
+  --color-l4: #1a6dc0;
+  --color-l4-hover: #155a9f;
+  --color-on-l4: #ffffff;
+  --color-l4-ink: #175fa8;
+  --color-l4-tint: #e8f1fb;
+  --color-l7: #3f1d82;
+  --color-l7-hover: #532da3;
+  --color-on-l7: #ffffff;
+  --color-l7-ink: #3f1d82;
+  --color-l7-tint: #efebf9;
+  --color-success: #19703f;
+  --color-success-tint: #e2f2e7;
+  --color-warning: #8a5300;
+  --color-warning-tint: #fcefd6;
+  --color-danger: #b3261e;
+  --color-danger-tint: #fde9e6;
+  --color-logo: #1b5e45;
+  --color-on-logo: #ffffff;
+  --color-brand-hero: #1b5e45;
+  --color-l4-hero: #175fa8;
+  --color-l7-hero: #3f1d82;
+  --color-on-hero: #ffffff;
+  --color-on-hero-2: #e3e9f2;
+}
+
+:root {
+  /* Motion roles. Press and colour feedback are near instant; a result or a
+     panel that appears gets long enough to be seen arriving; nothing delays
+     input, navigation or focus. All of it is switched off below for
+     prefers-reduced-motion. */
+  --motion-press: 120ms;
+  --motion-feedback: 180ms;
+  --motion-reveal: 240ms;
+  /* A bar sliding back into view follows the scroll that asked for it, so it
+     gets a little longer than a panel; leaving is quicker than arriving. */
+  --motion-chrome-in: 320ms;
+  --motion-chrome-out: 220ms;
+  /* The change of theme sweeps out from the button that asked for it. */
+  --motion-theme: 420ms;
+  --ease-out: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* How far an in-page jump must stop below the top so the sticky exam bar
+     (and, on a laptop, the masthead above it) does not cover the target. */
+  --anchor-top: 4.5rem;
+}
+@media (min-width: 64rem) {
+  :root {
+    --anchor-top: 8.5rem;
+  }
+}
+
+[data-level="level_4"] {
+  --color-level: var(--color-l4);
+  --color-on-level: var(--color-on-l4);
+  --color-level-ink: var(--color-l4-ink);
+  --color-action: var(--color-l4);
+  --color-action-hover: var(--color-l4-hover);
+  --color-on-action: var(--color-on-l4);
+  --color-action-ink: var(--color-l4-ink);
+  --color-action-tint: var(--color-l4-tint);
+  --color-hero: var(--color-l4-hero);
+}
+[data-level="level_7"] {
+  --color-level: var(--color-l7);
+  --color-on-level: var(--color-on-l7);
+  --color-level-ink: var(--color-l7-ink);
+  --color-action: var(--color-l7);
+  --color-action-hover: var(--color-l7-hover);
+  --color-on-action: var(--color-on-l7);
+  --color-action-ink: var(--color-l7-ink);
+  --color-action-tint: var(--color-l7-tint);
+  --color-hero: var(--color-l7-hero);
+}
+/* Native radios and checkboxes inherit their colour from the root, which sits
+   above the exam, so the exam restates it. */
+[data-level] {
+  accent-color: var(--color-action);
 }
 
 @layer base {
   html {
-    background: var(--color-paper);
+    background: var(--color-canvas);
     color: var(--color-ink);
+    color-scheme: light;
     font-family: var(--font-sans);
-    /* 17px: Devanagari needs a little more size than Latin to read well on a phone. */
     font-size: 106.25%;
     -webkit-text-size-adjust: 100%;
     text-rendering: optimizeLegibility;
+    accent-color: var(--color-action);
+    caret-color: var(--color-ink);
+    scrollbar-color: var(--color-line-strong) transparent;
+    scroll-padding-top: var(--anchor-top);
+    scroll-padding-bottom: 6rem;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
   }
   body {
-    /* Tall matras and conjuncts collide at the default line height. */
     line-height: 1.7;
     min-height: 100dvh;
-    /* Official titles run long without spaces ("Extension/Horticulture/
-       Agronomy/..."). Without this one word could widen a whole page past a
-       phone screen. It only breaks a word that cannot fit on its own line. */
     overflow-wrap: anywhere;
   }
+  :lang(ne) body {
+    font-size: 1.059rem;
+  }
+  /* One serif weight ships. Without this a heading asking for bold would get
+     a smeared, synthesized one, which damages Devanagari head lines. */
   h1,
   h2,
-  h3 {
-    font-family: var(--font-serif);
-    line-height: 1.3;
+  h3,
+  .font-display {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-synthesis: none;
+    line-height: 1.5;
     text-wrap: balance;
   }
   p {
@@ -94,124 +327,793 @@
   a {
     color: inherit;
   }
+  button,
+  input,
+  select,
+  textarea {
+    touch-action: manipulation;
+  }
+  button,
+  summary {
+    cursor: pointer;
+  }
+  summary {
+    list-style: none;
+  }
+  summary::-webkit-details-marker {
+    display: none;
+  }
+  [id] {
+    scroll-margin-top: var(--anchor-top);
+  }
   ::selection {
-    background: var(--color-mustard-tint);
-    color: var(--color-ink);
+    background: var(--color-ink);
+    color: var(--color-canvas);
   }
   :focus-visible {
-    outline: 3px solid var(--color-mustard);
-    outline-offset: 2px;
-    border-radius: 2px;
+    outline: 3px solid var(--color-focus);
+    outline-offset: 3px;
+    border-radius: var(--radius-md);
   }
   @media (prefers-reduced-motion: reduce) {
     *,
     *::before,
-    *::after {
+    *::after,
+    *::backdrop {
       animation: none !important;
       transition: none !important;
       scroll-behavior: auto !important;
+    }
+    /* Its own rule: a browser that does not know this pseudo-element would
+       otherwise discard the whole list above with it. */
+    *::details-content {
+      transition: none !important;
     }
   }
 }
 
 @layer components {
-  .wrap {
+  /* ---------------------------------------------------------------- layout */
+  .wrap,
+  .wrap-narrow {
     width: 100%;
-    max-width: 72rem;
     margin-inline: auto;
     padding-inline: 1rem;
   }
+  .wrap {
+    max-width: 74rem;
+  }
+  .wrap-narrow {
+    max-width: 44rem;
+  }
   @media (min-width: 48rem) {
-    .wrap {
+    .wrap,
+    .wrap-narrow {
+      padding-inline: 1.5rem;
+    }
+  }
+  @media (min-width: 64rem) {
+    .wrap,
+    .wrap-narrow {
       padding-inline: 2rem;
     }
   }
-
-  /* A printed-guide rule between sections: a hairline, not a card shadow. */
-  .rule {
-    border-top: 1px solid var(--color-rule);
+  /* A ruled section: the line and the space above it say "new group", so a
+     page of unrelated things does not need a box around each one. */
+  .ruled {
+    border-top: 1px solid var(--color-line);
+    padding-top: 1.5rem;
   }
 
+  /* ------------------------------------------------------------------ text */
   .link {
-    color: var(--color-field);
+    color: var(--color-action-ink);
+    font-weight: 600;
     text-decoration: underline;
+    text-decoration-color: color-mix(in srgb, var(--color-action-ink) 45%, transparent);
     text-decoration-thickness: 1px;
-    text-underline-offset: 0.2em;
+    text-underline-offset: 0.22em;
+    transition: text-decoration-color var(--motion-press) ease;
   }
   .link:hover {
+    text-decoration-color: currentColor;
     text-decoration-thickness: 2px;
   }
-
-  .eyebrow {
-    font-size: 0.8rem;
+  .num {
+    font-variant-numeric: tabular-nums;
+  }
+  /* Devanagari drawn by the device, without fetching the web font for it. */
+  .device-devanagari {
+    font-family: "Noto Sans Devanagari", "Nirmala UI", "Kohinoor Devanagari", system-ui, sans-serif;
+  }
+  /* The code a syllabus prints beside a topic (5.3), set like a figure in the
+     margin of a printed page. */
+  .code {
+    font-family: var(--font-display);
     font-weight: 600;
-    letter-spacing: 0.04em;
-    color: var(--color-ink-3);
+    font-synthesis: none;
+    font-variant-numeric: tabular-nums;
+    color: var(--color-level-ink);
+  }
+  .cite {
+    font-size: 0.8em;
+    font-weight: 700;
+    vertical-align: super;
+    line-height: 0;
+    padding-inline: 0.2em;
+    color: var(--color-action-ink);
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
   }
 
+  /* --------------------------------------------------------------- buttons */
   .btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 0.5rem;
-    min-height: 2.75rem;
-    padding: 0.5rem 1.1rem;
-    border-radius: 0.375rem;
-    font-weight: 600;
+    min-height: 3rem;
+    padding: 0.65rem 1.15rem;
+    border-radius: var(--radius-lg);
+    border: 1px solid transparent;
+    font-size: 0.95rem;
+    font-weight: 650;
+    line-height: 1.5;
+    text-align: center;
     text-decoration: none;
-    transition: background-color 120ms ease;
+    transition:
+      background-color var(--motion-press) ease,
+      border-color var(--motion-press) ease,
+      color var(--motion-press) ease,
+      transform var(--motion-press) var(--ease-out);
     cursor: pointer;
   }
+  .btn:active:not([disabled]) {
+    transform: translateY(1px) scale(0.99);
+  }
   .btn-primary {
-    background: var(--color-field);
-    color: var(--color-paper);
+    background: var(--color-action);
+    border-color: var(--color-action);
+    color: var(--color-on-action);
+    box-shadow: 0 1px 2px rgb(14 23 38 / 0.16);
   }
   .btn-primary:hover {
-    background: var(--color-field-2);
+    background: var(--color-action-hover);
+    border-color: var(--color-action-hover);
+  }
+  /* The one button inside the filled block, reversed out of it. */
+  .btn-on-hero {
+    background: var(--color-on-hero);
+    border-color: var(--color-on-hero);
+    color: var(--color-hero);
+    box-shadow: 0 1px 2px rgb(0 0 0 / 0.22);
+  }
+  .btn-on-hero:hover {
+    background: var(--color-on-hero-2);
+    border-color: var(--color-on-hero-2);
+  }
+  /* The arrow in a button leans the way the button goes. */
+  .btn-arrow {
+    transition: transform var(--motion-feedback) var(--ease-out);
+  }
+  .btn:hover .btn-arrow {
+    transform: translateX(3px);
+  }
+  /* The second choice beside a primary button: the same colour, as an outline. */
+  .btn-secondary {
+    border-color: var(--color-action-ink);
+    background: var(--color-surface);
+    color: var(--color-action-ink);
+  }
+  .btn-secondary:hover {
+    background: var(--color-action-tint);
   }
   .btn-quiet {
-    border: 1px solid var(--color-rule);
-    background: var(--color-card);
-    color: var(--color-ink);
+    background: transparent;
+    color: var(--color-action-ink);
+    padding-inline: 0.65rem;
+    text-decoration: underline;
+    text-decoration-color: color-mix(in srgb, var(--color-action-ink) 45%, transparent);
+    text-underline-offset: 0.22em;
   }
   .btn-quiet:hover {
-    border-color: var(--color-ink-3);
+    background: var(--color-action-tint);
+    text-decoration-color: currentColor;
   }
-  .btn[disabled] {
-    opacity: 0.6;
-    cursor: progress;
+  .btn-sm {
+    min-height: 2.75rem;
+    padding: 0.4rem 0.85rem;
+    font-size: var(--text-small);
+  }
+  .btn-block {
+    width: 100%;
+  }
+  .btn[disabled],
+  .btn[aria-disabled="true"] {
+    opacity: 0.55;
+    cursor: not-allowed;
   }
 
+  /* ---------------------------------------------------------------- fields */
   .field {
     width: 100%;
-    border: 1px solid var(--color-rule);
-    border-radius: 0.375rem;
-    background: var(--color-card);
+    min-height: 3rem;
+    border: 1px solid var(--color-line-strong);
+    border-radius: var(--radius-lg);
+    background: var(--color-surface);
     color: var(--color-ink);
-    padding: 0.6rem 0.75rem;
+    padding: 0.65rem 0.85rem;
     font: inherit;
+    transition: border-color var(--motion-press) ease;
+  }
+  .field:hover {
+    border-color: var(--color-action-ink);
   }
   .field:focus {
-    border-color: var(--color-field);
-    outline: none;
-    box-shadow: 0 0 0 3px var(--color-field-tint);
+    border-color: var(--color-action-ink);
+    outline: 3px solid var(--color-focus);
+    outline-offset: 2px;
+  }
+  .field[aria-invalid="true"] {
+    border-color: var(--color-danger);
+  }
+  select.field {
+    appearance: none;
+    padding-right: 2.5rem;
+    background-image:
+      linear-gradient(45deg, transparent 50%, var(--color-ink-2) 50%),
+      linear-gradient(135deg, var(--color-ink-2) 50%, transparent 50%);
+    background-position:
+      calc(100% - 1.15rem) 50%,
+      calc(100% - 0.8rem) 50%;
+    background-size:
+      0.36rem 0.36rem,
+      0.36rem 0.36rem;
+    background-repeat: no-repeat;
+  }
+  select.field option {
+    background: var(--color-surface);
+    color: var(--color-ink);
+  }
+  /* A radio or checkbox drawn as a whole tappable row. */
+  .choice {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    min-height: 3.5rem;
+    padding: 0.85rem 1rem;
+    border: 1px solid var(--color-line-strong);
+    border-radius: var(--radius-lg);
+    background: var(--color-surface);
+    cursor: pointer;
+    transition:
+      border-color var(--motion-press) ease,
+      background-color var(--motion-press) ease,
+      box-shadow var(--motion-press) ease;
+  }
+  .choice:hover {
+    border-color: var(--color-action-ink);
+  }
+  .choice:has(:checked) {
+    border-color: var(--color-action-ink);
+    background: var(--color-action-tint);
+    box-shadow: inset 0 0 0 1px var(--color-action-ink);
+  }
+  .choice:has(:focus-visible) {
+    outline: 3px solid var(--color-focus);
+    outline-offset: 3px;
+  }
+  .choice input {
+    margin-top: 0.3rem;
+    width: 1.25rem;
+    height: 1.25rem;
+    flex-shrink: 0;
   }
 
-  /* Citation markers in an answer: small, tappable, never mistaken for text. */
-  .cite {
-    font-size: 0.72em;
-    font-weight: 700;
-    vertical-align: super;
-    line-height: 0;
-    padding-inline: 0.12em;
-    color: var(--color-field);
+  /* -------------------------------------------------------------- surfaces */
+  .card {
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-xl);
+    background: var(--color-surface);
+    box-shadow: var(--shadow-panel);
+  }
+  /* A card that is itself one link: it answers the pointer as a whole. */
+  .card-link {
+    transition:
+      border-color var(--motion-press) ease,
+      box-shadow var(--motion-feedback) ease,
+      transform var(--motion-feedback) var(--ease-out);
+  }
+  .card-link:hover {
+    border-color: var(--color-action-ink);
+    box-shadow: 0 6px 16px -10px rgb(14 23 38 / 0.35);
+    transform: translateY(-1px);
+  }
+  /* Its icon fills with the exam's colour while the pointer is on the card. */
+  .card-link .icon-chip {
+    transition:
+      background-color var(--motion-feedback) ease,
+      color var(--motion-feedback) ease;
+  }
+  .card-link:hover .icon-chip,
+  .card-link:focus-visible .icon-chip {
+    background: var(--color-action);
+    color: var(--color-on-action);
+  }
+
+  /* The one filled block on a screen: it holds the next study action. Filled
+     with the exam's colour, with a photograph of Nepali fields along one edge
+     that fades into the fill, so the words always sit on flat colour. */
+  .lead-block {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    border: 1px solid color-mix(in srgb, var(--color-on-hero) 14%, transparent);
+    border-radius: var(--radius-2xl);
+    background: var(--color-hero);
+    color: var(--color-on-hero);
+  }
+  .lead-block-quiet {
+    color: var(--color-on-hero-2);
+  }
+  .lead-block :focus-visible {
+    outline-color: var(--color-on-hero);
+  }
+  .lead-block ::selection {
+    background: var(--color-on-hero);
+    color: var(--color-hero);
+  }
+  /* On a phone the photograph is a band across the top; from a tablet up it
+     runs down the right-hand side behind nothing but its own fade. */
+  .lead-photo {
+    position: relative;
+    height: 7.5rem;
+    overflow: hidden;
+    -webkit-mask-image: linear-gradient(to bottom, #000 45%, transparent);
+    mask-image: linear-gradient(to bottom, #000 45%, transparent);
+  }
+  .lead-photo img {
+    object-fit: cover;
+    /* A slow drift, the way a camera breathes over a still landscape. It runs
+       on the compositor and is switched off for reduced motion. */
+    animation: photo-drift 32s ease-in-out infinite alternate;
+    will-change: transform;
+  }
+  .lead-body {
+    position: relative;
+  }
+  @media (min-width: 48rem) {
+    .lead-photo {
+      position: absolute;
+      inset-block: 0;
+      right: 0;
+      z-index: -1;
+      width: 46%;
+      height: auto;
+      -webkit-mask-image: linear-gradient(to right, transparent, #000 48%);
+      mask-image: linear-gradient(to right, transparent, #000 48%);
+    }
+    .lead-body {
+      max-width: 62%;
+    }
+  }
+  @keyframes photo-drift {
+    from {
+      transform: scale(1.03) translate3d(0, 0, 0);
+    }
+    to {
+      transform: scale(1.14) translate3d(-2.5%, -1.5%, 0);
+    }
+  }
+  /* Who took the photograph, on the photograph. */
+  .photo-credit {
+    position: absolute;
+    right: 0.5rem;
+    /* At the top on a phone, where the band fades out towards the bottom. */
+    top: 0.5rem;
+    z-index: 1;
+    border-radius: var(--radius-md);
+    background: rgb(8 12 20 / 0.62);
+    color: #ffffff;
+    padding: 0.1rem 0.5rem;
+    font-size: var(--text-caption);
+    line-height: 1.6;
     text-decoration: none;
   }
-  .cite:hover {
+  .photo-credit:hover {
     text-decoration: underline;
   }
+  @media (min-width: 48rem) {
+    .photo-credit {
+      top: auto;
+      bottom: 0.5rem;
+    }
+  }
+  /* How far along, inside the filled block: a labelled bar, thick enough to read. */
+  .hero-meter {
+    height: 0.5rem;
+    overflow: hidden;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--color-on-hero) 26%, transparent);
+  }
+  .hero-meter > span {
+    display: block;
+    height: 100%;
+    /* Never less than a sliver, so one topic of thirty-one still shows. */
+    min-width: 0.5rem;
+    border-radius: 999px;
+    background: var(--color-on-hero);
+    transition: width var(--motion-reveal) var(--ease-out);
+    animation: meter-grow 700ms var(--ease-out) both;
+  }
+  @keyframes meter-grow {
+    from {
+      width: 0;
+      min-width: 0;
+    }
+  }
+  /* A quieter block in the exam's wash: a result, or an exam with no syllabus. */
+  .wash-block {
+    border: 1px solid color-mix(in srgb, var(--color-action-ink) 22%, transparent);
+    border-radius: var(--radius-2xl);
+    background: var(--color-action-tint);
+    color: var(--color-ink);
+  }
+  /* The mark that says what kind of thing a panel holds, before its title is read. */
+  .icon-chip {
+    display: inline-grid;
+    place-items: center;
+    flex-shrink: 0;
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: var(--radius-lg);
+    background: var(--color-action-tint);
+    color: var(--color-action-ink);
+  }
+  .icon-chip-solid {
+    background: var(--color-action);
+    color: var(--color-on-action);
+  }
+  /* Inside the filled block the chip is reversed out, like the button. */
+  .lead-block .icon-chip {
+    background: color-mix(in srgb, var(--color-on-hero) 18%, transparent);
+    color: var(--color-on-hero);
+  }
+  .row-link {
+    transition: background-color var(--motion-press) ease;
+  }
+  .row-link:hover,
+  .row-link:focus-visible {
+    background: var(--color-sunken);
+  }
 
-  .num-ne {
-    font-feature-settings: "locl";
+  /* ------------------------------------------------------------ study shell */
+  .exam-bar {
+    background: var(--color-level);
+    color: var(--color-on-level);
+  }
+  /* Only the bar's own row sits on the level colour; the editor that opens
+     under it is ordinary paper and keeps the ordinary focus ring. */
+  .exam-bar summary:focus-visible {
+    outline-color: var(--color-on-level);
+    outline-offset: -4px;
+  }
+  .exam-bar summary ::selection {
+    background: var(--color-on-level);
+    color: var(--color-level);
+  }
+  .exam-change {
+    border: 1px solid color-mix(in srgb, var(--color-on-level) 55%, transparent);
+    border-radius: var(--radius-lg);
+    transition: background-color var(--motion-press) ease;
+  }
+  summary:hover .exam-change {
+    background: color-mix(in srgb, var(--color-on-level) 16%, transparent);
+  }
+  /* "Viewing only", beside the name of an exam that is not the saved one. */
+  .exam-viewing {
+    background: color-mix(in srgb, var(--color-on-level) 18%, transparent);
+    color: var(--color-on-level);
+  }
+  .disclosure-icon {
+    transition: transform var(--motion-feedback) var(--ease-out);
+  }
+  details[open] > summary .disclosure-icon {
+    transform: rotate(90deg);
+  }
+  details[open] > summary .disclosure-icon-down {
+    transform: rotate(180deg);
+  }
+  /* A panel that grows open instead of popping. Browsers without
+     ::details-content simply open it at once. */
+  .reveal {
+    interpolate-size: allow-keywords;
+  }
+  .reveal::details-content {
+    block-size: 0;
+    overflow: clip;
+    opacity: 0;
+    transition:
+      block-size var(--motion-reveal) var(--ease-out),
+      opacity var(--motion-reveal) ease,
+      content-visibility var(--motion-reveal) allow-discrete;
+  }
+  .reveal[open]::details-content {
+    block-size: auto;
+    opacity: 1;
+  }
+
+  /* The tab the student just tapped answers at once, before the server does. */
+  .tab {
+    color: var(--color-ink-3);
+    text-decoration: none;
+  }
+  .tab:hover {
+    color: var(--color-ink);
+  }
+  .tab[aria-current="page"] {
+    color: var(--color-action-ink);
+  }
+  .tab-body {
+    position: relative;
+    transition: color var(--motion-press) ease;
+  }
+  .tab-mark {
+    position: absolute;
+    inset-inline: 0.6rem;
+    height: 3px;
+    border-radius: 3px;
+    background: var(--color-action);
+    transform: scaleX(0);
+    transition: transform var(--motion-feedback) var(--ease-out);
+  }
+  .tab[aria-current="page"] .tab-mark {
+    transform: scaleX(1);
+  }
+  .tab-body[data-pending] {
+    color: var(--color-action-ink);
+  }
+  .tab-body[data-pending] .tab-mark {
+    transform: scaleX(1);
+    animation: tab-pending 900ms ease-in-out 120ms infinite;
+  }
+  @keyframes tab-pending {
+    50% {
+      opacity: 0.25;
+    }
+  }
+
+  /* A hairline across the top while a tapped link is still loading. It waits
+     120ms, so an instant navigation never flashes it. */
+  .nav-progress {
+    position: fixed;
+    inset-inline: 0;
+    top: 0;
+    z-index: 60;
+    height: 3px;
+    pointer-events: none;
+    overflow: hidden;
+    opacity: 0;
+  }
+  .nav-progress[data-active] {
+    opacity: 1;
+    transition: opacity 0ms linear 120ms;
+  }
+  .nav-progress::after {
+    content: "";
+    position: absolute;
+    inset-block: 0;
+    left: 0;
+    width: 38%;
+    border-radius: 3px;
+    background: var(--color-focus);
+    transform: translateX(-110%);
+  }
+  .nav-progress[data-active]::after {
+    animation: nav-progress 1100ms var(--ease-standard) 120ms infinite;
+  }
+  @keyframes nav-progress {
+    to {
+      transform: translateX(290%);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    /* No travelling bar: a still, full-width line says the same thing. */
+    .nav-progress::after {
+      width: 100%;
+      transform: none;
+    }
+  }
+
+  /* ---------------------------------------------------------------- motion */
+  .sheet[open] {
+    animation: sheet-enter var(--motion-reveal) var(--ease-out);
+  }
+  .sheet[open]::backdrop {
+    animation: fade-in var(--motion-feedback) ease;
+  }
+  .skeleton {
+    border-radius: var(--radius-lg);
+    background: var(--color-sunken);
+    animation: pulse 1.6s ease-in-out infinite;
+  }
+  .feedback-enter {
+    animation: feedback-enter var(--motion-feedback) var(--ease-out);
+  }
+
+  /* A message that confirms something and then leaves by itself. It sits
+     above the bottom navigation on a phone and in the corner on a laptop, so
+     it never pushes the page down. */
+  .toast-region {
+    position: fixed;
+    z-index: 50;
+    inset-inline: 0.75rem;
+    bottom: calc(var(--bottom-nav-h, 0px) + 0.75rem + env(safe-area-inset-bottom));
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    pointer-events: none;
+  }
+  @media (min-width: 64rem) {
+    .toast-region {
+      inset-inline: auto 1.5rem;
+      bottom: 1.5rem;
+      align-items: flex-end;
+    }
+  }
+  .toast {
+    pointer-events: auto;
+    position: relative;
+    overflow: hidden;
+    width: 100%;
+    max-width: 26rem;
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-xl);
+    background: var(--color-surface);
+    color: var(--color-ink);
+    box-shadow: var(--shadow-toast);
+    animation: toast-enter var(--motion-reveal) var(--ease-out);
+  }
+  .toast[data-leaving] {
+    animation: toast-leave var(--motion-feedback) ease forwards;
+  }
+  /* The time left, drawn as a line that runs out. It stops while the message
+     is held, which the component marks: a pointer merely resting where the
+     message appeared does not hold it. */
+  .toast-timer {
+    position: absolute;
+    inset-inline: 0;
+    bottom: 0;
+    height: 2px;
+    background: var(--color-action);
+    transform-origin: left;
+    animation: toast-timer linear forwards;
+  }
+  .toast[data-held] .toast-timer {
+    animation-play-state: paused;
+  }
+  @keyframes toast-enter {
+    from {
+      opacity: 0;
+      transform: translateY(10px) scale(0.98);
+    }
+  }
+  @keyframes toast-leave {
+    to {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+  }
+  @keyframes toast-timer {
+    to {
+      transform: scaleX(0);
+    }
+  }
+  /* The theme toggle's icon turns into place when the theme changes. */
+  .theme-icon {
+    animation: theme-icon var(--motion-reveal) var(--ease-out);
+  }
+  @keyframes theme-icon {
+    from {
+      opacity: 0;
+      transform: rotate(-70deg) scale(0.6);
+    }
+  }
+  .meter-fill {
+    transform-origin: left;
+    transition: transform var(--motion-reveal) var(--ease-out);
+  }
+  @keyframes pulse {
+    50% {
+      opacity: 0.55;
+    }
+  }
+  @keyframes feedback-enter {
+    from {
+      opacity: 0.4;
+      transform: translateY(6px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  @keyframes sheet-enter {
+    from {
+      opacity: 0;
+      transform: translateY(14px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+}
+
+/* The exam bar steps out of the way while the student reads down the page and
+   comes back the moment they scroll up (components/shell/AdaptiveChrome.tsx).
+   A sliver of its colour stays, so the exam is never entirely off screen. */
+.study-exam {
+  transition: transform var(--motion-chrome-in) var(--ease-out);
+}
+.study-exam[data-tucked] {
+  transform: translateY(calc(-100% + 3px));
+  transition: transform var(--motion-chrome-out) var(--ease-standard);
+}
+/* While its editor is open the bar is part of the page: a tall sticky panel
+   would cover the content it belongs to. */
+.study-exam:has(details[open]) {
+  position: static;
+  transform: none;
+}
+
+/* These measured accessibility overrides must supersede utility positioning.
+   components/shell/AdaptiveChrome.tsx sets the attribute when enlarged text or
+   a short viewport would leave too little room between the fixed bars. */
+:root[data-flow-chrome] .study-header,
+:root[data-flow-chrome] .study-exam {
+  position: static;
+  transform: none;
+}
+:root[data-flow-chrome] .study-header-tabs {
+  display: block;
+  order: 3;
+  width: 100%;
+}
+:root[data-flow-chrome] .study-bottom-nav {
+  position: static;
+  box-shadow: none;
+}
+:root[data-flow-chrome] .study-footer {
+  padding-bottom: 0;
+}
+
+/* Changing theme: the new colours open as a circle from the button that was
+   pressed (components/shell/ThemeToggle.tsx sets the centre and the radius).
+   Only while that change is running, so nothing else on the site is affected,
+   and never under reduced motion: the toggle skips the transition there. */
+html[data-theme-change]::view-transition-old(root),
+html[data-theme-change]::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+html[data-theme-change]::view-transition-new(root) {
+  animation: theme-sweep var(--motion-theme) var(--ease-standard) both;
+}
+@keyframes theme-sweep {
+  from {
+    clip-path: circle(0 at var(--theme-x, 100%) var(--theme-y, 0));
+  }
+  to {
+    clip-path: circle(var(--theme-r, 150vmax) at var(--theme-x, 100%) var(--theme-y, 0));
   }
 }

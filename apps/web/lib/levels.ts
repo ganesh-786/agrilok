@@ -15,7 +15,3 @@ export function levelFromSlug(slug: string): LevelCode | null {
 export function slugFromLevel(level: LevelCode): LevelSlug {
   return level === "level_4" ? "level-4" : "level-7";
 }
-
-export function levelNumber(level: LevelCode): 4 | 7 {
-  return level === "level_4" ? 4 : 7;
-}

@@ -1,31 +1,23 @@
 import type { Metadata, Viewport } from "next";
-import { Martel, Mukta } from "next/font/google";
+import { headers } from "next/headers";
 
-import { SiteFooter } from "@/components/SiteFooter";
-import { SiteHeader } from "@/components/SiteHeader";
+import { Suspense } from "react";
+
+import { InlineScript } from "@/components/InlineScript";
 import { ServiceWorkerRegister } from "@/components/ServiceWorker";
+import { NavProgress } from "@/components/shell/NavProgress";
 import { SITE_URL } from "@/lib/config";
-import { getDictionary, getLite } from "@/lib/preferences";
+import { getDictionary } from "@/lib/preferences";
 
+import { fontDevanagari, fontLatin, fontSerifDevanagari, fontSerifLatin } from "./fonts";
 import "./globals.css";
 
-// Mukta for reading and interface text; Martel for headings. Both are
-// designed for Devanagari first and carry a matching Latin, so Nepali and
-// English share one voice. Weights are kept to the few actually used, because
-// every font file is paid for in data on a rural connection.
-const mukta = Mukta({
-  subsets: ["devanagari", "latin"],
-  weight: ["400", "600", "700"],
-  variable: "--font-mukta",
-  display: "swap",
-});
-const martel = Martel({
-  subsets: ["devanagari", "latin"],
-  weight: ["700", "800"],
-  variable: "--font-martel",
-  display: "swap",
-  preload: false,
-});
+const themeInitScript = `(() => {
+  try {
+    const theme = localStorage.getItem("agrilok:theme");
+    if (theme === "light" || theme === "dark") document.documentElement.dataset.theme = theme;
+  } catch {}
+})();`;
 
 export async function generateMetadata(): Promise<Metadata> {
   const { t } = await getDictionary();
@@ -47,23 +39,36 @@ export async function generateMetadata(): Promise<Metadata> {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
+  // The top of every page is the masthead, which sits on the canvas colour.
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f6f1e6" },
-    { media: "(prefers-color-scheme: dark)", color: "#121611" },
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#0f141b" },
   ],
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const { lang, t } = await getDictionary();
-  const lite = await getLite();
+  const { t } = await getDictionary();
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
   return (
-    <html lang={t.htmlLang} className={`${mukta.variable} ${martel.variable}`}>
-      <body className="flex min-h-dvh flex-col bg-paper text-ink antialiased">
-        <SiteHeader t={t} lang={lang} lite={lite} />
-        <main id="main" className="flex-1">
-          {children}
-        </main>
-        <SiteFooter t={t} />
+    <html
+      lang={t.htmlLang}
+      className={`${fontLatin.variable} ${fontDevanagari.variable} ${fontSerifLatin.variable} ${fontSerifDevanagari.variable}`}
+      suppressHydrationWarning
+    >
+      <head>
+        <InlineScript nonce={nonce} html={themeInitScript} />
+      </head>
+      <body className="bg-canvas text-ink antialiased">
+        <a
+          href="#main"
+          className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-50 focus:rounded-lg focus:bg-surface focus:px-3 focus:py-2"
+        >
+          {t.nav.skip}
+        </a>
+        <Suspense>
+          <NavProgress />
+        </Suspense>
+        {children}
         <ServiceWorkerRegister />
       </body>
     </html>

@@ -5,7 +5,13 @@ const config = [
   ...nextCoreWebVitals,
   ...nextTypescript,
   {
-    ignores: [".next/**", "node_modules/**", "public/service-worker.js", "next-env.d.ts"],
+    ignores: [
+      ".next/**",
+      "node_modules/**",
+      "public/service-worker.js",
+      "tests/fixtures/service-worker-v1.js",
+      "next-env.d.ts",
+    ],
   },
   {
     rules: {
