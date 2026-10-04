@@ -66,7 +66,7 @@ jobs:
       # fetched files themselves are never uploaded anywhere.
       - name: Restore the fetch manifest
         if: env.DRY_RUN == 'false'
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6
         with:
           path: data/raw/manifest.jsonl
           key: crawl-manifest-${{ github.run_id }}
@@ -83,7 +83,7 @@ jobs:
 
       - name: Save the fetch manifest
         if: env.DRY_RUN == 'false' && always()
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v6
         with:
           path: data/raw/manifest.jsonl
           key: crawl-manifest-${{ github.run_id }}
