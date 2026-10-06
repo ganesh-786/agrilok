@@ -9,9 +9,12 @@ cached answer dies when its source changes.
 
 from __future__ import annotations
 
+import contextlib
 import math
 from collections.abc import AsyncIterator, Iterator
+from typing import Any
 
+import psycopg
 import pytest
 from pydantic import SecretStr
 
@@ -182,6 +185,39 @@ async def test_keyword_matches_never_push_out_a_stronger_vector_match(rt: Runtim
             keyword_min_score=0.45,
         )
     assert result.results[0].chunk_id == "REF-01-031"
+
+
+async def test_a_keyword_match_the_vector_side_never_proposed_is_judged_on_its_own_score(
+    rt: Runtime,
+) -> None:
+    # The corpus has more close chunks than the vector side returns (20), so
+    # the one chunk that names the Act is not among them. It can only be
+    # judged if the keyword side reports its vector score, and until this test
+    # no test had a corpus large enough for that to matter.
+    weak = unit((0, 0.5), (3, math.sqrt(0.75)))  # cosine 0.5 with SOIL: below 0.55, above 0.45
+    too_weak = unit((0, 0.3), (4, math.sqrt(0.91)))  # cosine 0.3: below both floors
+    async with rt.pool.connection() as conn:
+        await add_document(conn, "D")
+        for i in range(24):
+            close = unit((0, 0.95), (10 + i, math.sqrt(1 - 0.95**2)))
+            await add_chunk(conn, f"D-01-{i:03d}", "D", "General soil heading", close, index=i)
+        await add_chunk(conn, "D-01-100", "D", "Seeds Act 2045 registration", weak, index=100)
+        await add_chunk(conn, "D-01-101", "D", "Seeds Act 2045 penalties", too_weak, index=101)
+        result = await retrieve(
+            conn,
+            question="Seeds Act 2045",
+            query_vector=SOIL,
+            filters=Filters(level=ExamLevel.LEVEL_7),
+            top_k=6,
+            min_score=0.55,
+            keyword_min_score=0.45,
+        )
+    chosen = {c.chunk_id: c for c in result.results}
+    assert "D-01-100" in chosen, "an exact-term match with a fair vector score is rescued"
+    assert chosen["D-01-100"].vector_rank is None, "the vector side did not propose it"
+    assert chosen["D-01-100"].similarity == pytest.approx(0.5, abs=1e-6)
+    assert "D-01-101" not in chosen, "a keyword match alone is never enough"
+    assert len(result.results) == 6
 
 
 # --- the ask pipeline ---------------------------------------------------------------
@@ -459,3 +495,232 @@ async def test_nul_characters_in_a_models_quote_do_not_break_storage(
     assert result.status == "answered"
     assert result.answer_id is not None
     assert all("\x00" not in q for q in result.citations[0]["quotes"])
+
+
+# --- speed, the time budget, and what is measured ----------------------------------
+
+MARKS_QUESTION = "How many marks is the written examination?"
+
+
+def _marks_answer(usage: dict[str, int] | None = None) -> dict[str, object]:
+    reply = generation_response(
+        {
+            "sufficient": True,
+            "answer": "The written examination carries 200 marks [LUM-01-000].",
+            "claims": [
+                {
+                    "claim": "The written examination carries 200 marks.",
+                    "source_id": "LUM-01-000",
+                    "quote": "नलम्खत परीक्षा (Written Examination) प\n\nू\n\nणागङ्क :- 200",
+                }
+            ],
+        }
+    )
+    if usage is not None:
+        reply["usageMetadata"] = usage
+    return reply
+
+
+async def _marks_corpus(rt: Runtime, fake: FakeGemini, excerpts: dict[str, str]) -> None:
+    async with rt.pool.connection() as conn:
+        await add_document(conn, "LUM-01")
+        await add_chunk(conn, "LUM-01-000", "LUM-01", excerpts["LUM-01-000"], SOIL)
+    fake.embeddings[MARKS_QUESTION] = SOIL
+
+
+async def _today(rt: Runtime) -> dict[str, int]:
+    async with rt.pool.connection() as conn:
+        cur = await conn.execute("select metric, count from usage_daily")
+        return {row["metric"]: int(row["count"]) for row in await cur.fetchall()}
+
+
+async def test_a_lone_question_is_not_held_back_by_our_own_limiter(
+    db_url: str, fake: FakeGemini, excerpts: dict[str, str]
+) -> None:
+    # At the default ceiling of 10 a minute, requests used to be spaced six
+    # seconds apart, so every new question waited six seconds between its
+    # embedding and its generation with nobody else in the queue.
+    waits: list[float] = []
+
+    async def recording_sleep(seconds: float) -> None:
+        waits.append(seconds)
+
+    runtime = await open_runtime(
+        _settings(db_url, gemini_max_requests_per_minute=10),
+        http=fake.client(),
+        sleep=recording_sleep,
+    )
+    try:
+        async with runtime.pool.connection() as conn:
+            await reset(conn)
+        await _marks_corpus(runtime, fake, excerpts)
+        fake.generations.append(_marks_answer())
+        result = await ask(runtime, question=MARKS_QUESTION, level=ExamLevel.LEVEL_7)
+    finally:
+        await runtime.close()
+
+    assert result.status == "answered"
+    assert fake.calls == {"embed": 1, "generate": 1}
+    assert waits == []
+    assert "wait" not in result.timings
+
+
+async def test_a_question_out_of_time_is_unavailable_spends_nothing_and_is_not_cached(
+    db_url: str, fake: FakeGemini, excerpts: dict[str, str]
+) -> None:
+    # A budget too small for even one request. The question must end as
+    # "unavailable" at once, with no call made, no quota reserved and nothing
+    # stored: an outage says nothing about the question.
+    runtime = await open_runtime(
+        _settings(db_url, ask_deadline_seconds=0.2), http=fake.client(), sleep=_no_sleep
+    )
+    try:
+        async with runtime.pool.connection() as conn:
+            await reset(conn)
+        await _marks_corpus(runtime, fake, excerpts)
+        result = await ask(runtime, question=MARKS_QUESTION, level=ExamLevel.LEVEL_7)
+        async with runtime.pool.connection() as conn:
+            stored = await (await conn.execute("select count(*) as n from answers")).fetchone()
+            reserved = await (
+                await conn.execute("select count(*) as n from quota_usage")
+            ).fetchone()
+        today = await _today(runtime)
+    finally:
+        await runtime.close()
+
+    assert result.stage is Stage.UNAVAILABLE
+    assert result.detail == "this took too long; please try again"
+    assert sum(fake.calls.values()) == 0
+    assert stored == {"n": 0}
+    assert reserved == {"n": 0}
+    assert today["refused_unavailable"] == 1
+
+
+async def test_every_question_is_timed_and_costed_without_keeping_its_words(
+    rt: Runtime, fake: FakeGemini, excerpts: dict[str, str]
+) -> None:
+    await _marks_corpus(rt, fake, excerpts)
+    fake.generations.append(_marks_answer({"promptTokenCount": 5200, "candidatesTokenCount": 640}))
+
+    live = await ask(rt, question=MARKS_QUESTION, level=ExamLevel.LEVEL_7)
+    hit = await ask(rt, question=MARKS_QUESTION, level=ExamLevel.LEVEL_7)
+    today = await _today(rt)
+
+    assert set(live.timings) == {"cache", "embed", "search", "generate", "check", "total"}
+    assert set(hit.timings) == {"cache", "total"}, "a cached answer does none of the other work"
+    assert live.usage == {
+        "tokens.generate.prompt": 5200,
+        "tokens.generate.output": 640,
+        "attempts.embed": 1,
+        "attempts.generate": 1,
+    }
+    assert hit.usage == {}
+    # The same numbers, as counts for the day.
+    assert today["tokens.generate.prompt"] == 5200
+    assert today["attempts.generate"] == 1
+    assert today["ask"] == 2
+    assert today["answered"] == 1
+    assert today["cache_hit_exact"] == 1
+    assert sum(n for m, n in today.items() if m.startswith("ms.total_live.")) == 1
+    assert sum(n for m, n in today.items() if m.startswith("ms.total_exact.")) == 1
+    # Nothing recorded names the question.
+    words = {w.lower().strip("?") for w in MARKS_QUESTION.split()}
+    assert not any(w in metric.lower().split(".") for metric in today for w in words)
+
+
+async def test_a_refusal_for_personal_data_is_counted_but_leaves_no_trace_of_the_question(
+    rt: Runtime, caplog: pytest.LogCaptureFixture
+) -> None:
+    question = "My number is 9841234567, what is IPM?"
+    with caplog.at_level("INFO", logger="agrilok_core.pipeline"):
+        result = await ask(rt, question=question, level=ExamLevel.LEVEL_7)
+    today = await _today(rt)
+
+    assert result.stage is Stage.PERSONAL_DATA
+    assert today["ask"] == 1
+    assert today["refused_personal_data"] == 1
+    logged = " ".join(record.getMessage() for record in caplog.records)
+    assert "q=-" in logged
+    assert "9841234567" not in logged
+
+
+async def test_a_cached_answer_shows_todays_review_state_and_counts_the_serve(
+    rt: Runtime, fake: FakeGemini, excerpts: dict[str, str]
+) -> None:
+    await _marks_corpus(rt, fake, excerpts)
+    fake.generations.append(_marks_answer())
+    first = await ask(rt, question=MARKS_QUESTION, level=ExamLevel.LEVEL_7)
+    async with rt.pool.connection() as conn:
+        await conn.execute(
+            "update chunks set review_state = 'verified', reviewed_by = '@reviewer', "
+            "reviewed_at = now(), self_review = false where id = 'LUM-01-000'"
+        )
+
+    again = await ask(rt, question=MARKS_QUESTION, level=ExamLevel.LEVEL_7)
+    third = await ask(rt, question=MARKS_QUESTION, level=ExamLevel.LEVEL_7)
+
+    assert first.citations[0]["review_state"] == "ai_assisted_pending_review"
+    assert again.citations[0]["review_state"] == "verified"
+    assert (again.cache.served_count, third.cache.served_count) == (2, 3)
+
+
+class _Trips:
+    """Counts the times the pipeline waits on the database.
+
+    A batch (db.fetch_together) is one wait however many statements it holds;
+    a statement outside a batch is one wait each. This counts both, which is
+    what a network between the API and the database charges for.
+    """
+
+    def __init__(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        self.count = 0
+        self._depth = 0
+        execute = psycopg.AsyncConnection.execute
+        pipeline = psycopg.AsyncConnection.pipeline
+        trips = self
+
+        async def counting_execute(conn: Any, *args: Any, **kwargs: Any) -> Any:
+            if trips._depth == 0:
+                trips.count += 1
+            return await execute(conn, *args, **kwargs)
+
+        @contextlib.asynccontextmanager
+        async def counting_pipeline(conn: Any) -> AsyncIterator[Any]:
+            trips._depth += 1
+            try:
+                async with pipeline(conn) as batch:
+                    yield batch
+            finally:
+                trips._depth -= 1
+                trips.count += 1
+
+        monkeypatch.setattr(psycopg.AsyncConnection, "execute", counting_execute)
+        monkeypatch.setattr(psycopg.AsyncConnection, "pipeline", counting_pipeline)
+
+    def reset(self) -> None:
+        self.count = 0
+
+
+async def test_a_question_waits_on_the_database_as_few_times_as_it_must(
+    rt: Runtime, fake: FakeGemini, excerpts: dict[str, str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Measured before this was batched: 13 waits for a new answered question
+    # and 6 to 7 for a cached one. These are ceilings, so adding a statement
+    # that travels alone fails here and has to be argued for.
+    await _marks_corpus(rt, fake, excerpts)
+    fake.generations.append(_marks_answer())
+    trips = _Trips(monkeypatch)
+
+    live = await ask(rt, question=MARKS_QUESTION, level=ExamLevel.LEVEL_7)
+    live_trips = trips.count
+    trips.reset()
+    hit = await ask(rt, question=MARKS_QUESTION, level=ExamLevel.LEVEL_7)
+    hit_trips = trips.count
+
+    assert live.status == "answered"
+    assert hit.cache.kind == "exact"
+    # count and look up; reserve the embedding; near-duplicate cache; both
+    # sides of retrieval; chunk details; reserve the generation; count and store.
+    assert live_trips <= 7
+    # count and look up; are the cited documents unchanged; record the serve.
+    assert hit_trips <= 3
