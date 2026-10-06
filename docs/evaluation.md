@@ -601,10 +601,92 @@ verified.
    manures supports "urea is not organic". That decides `PP-16`'s expected
    behaviour.
 
+### Speed: what was measured without a model (2026-10-06)
+
+Until this date nothing recorded where a question's time went, so "answers are
+slow" could not be shown and neither could a fix. Three things were measured
+with a fake model that answers instantly, so that every second counted is the
+pipeline's own. No model was called and no hosted database was touched.
+
+**Our own limiter.** The client spaced requests 60 / 10 = 6 seconds apart, so
+a question waited between its embedding and its generation with nobody else
+in the queue. It now limits how many requests start in a minute, per kind, and
+does not space them. Real clock, default ceiling of 10 a minute:
+
+| Questions arriving at once | Before | After |
+|---|---|---|
+| 1 | waits 6 s | no wait |
+| 3 | 6 s, 24 s and 30 s | no wait |
+| 10 | not measured | no wait |
+| 12 | not measured | 10 at once, 2 wait 60 s: the ceiling holding |
+
+**Waits on the database.** Statements that do not depend on each other now
+travel together. Measured through a relay that delays everything sent to
+Postgres by 50 ms, as distance would; the figure is wall time divided by that
+delay, the median of 7 questions after 7 to warm up.
+
+| One question | Before | After |
+|---|---|---|
+| new, answered and stored | 13.7 | 8.6 |
+| new, nothing relevant in the corpus | 12.6 | 7.6 |
+| reworded, served from the near-duplicate cache | 9.9 | 6.3 |
+| asked before, answer served from the cache | 7.4 | 3.8 |
+| asked before, refusal served from the cache | 6.1 | 2.5 |
+
+Two of the waits left on a new question are the quota reservations, kept apart
+on purpose: every attempt must be reserved exactly when it is made.
+
+**Retrieval returns what it returned.** The keyword statement now reports each
+match's vector score itself, which removed a statement. Old and new were run
+side by side on the local corpus: 438 chunks as question vectors, both levels,
+three settings, 3,066 retrievals, 779 of which chose a chunk the vector side
+never proposed. Chunks, order, scores and text were identical in all of them.
+
+**What this does not show.** How long the model takes, how many tokens an
+answer uses, or anything about the hosted database: those need a run with a
+key, and the pipeline now records them when there is one. **The golden set has
+not been run on this change.** It touches the answer path, so both numbers are
+owed before it merges ([when to run it](#when-to-run-it)).
+
+### Measuring retrieval by itself (2026-10-06)
+
+The golden-set run says whether a question was answered. It cannot say why one
+was refused: the right chunk never found, or found and passed over. `U-01` was
+the first kind and nothing would have shown it but a person reading the run.
+
+`python -m evaluation.recall` asks only that. For a labelled question it
+reports whether the chunk that holds the answer is among the chunks the model
+would be shown, and whether it is in the top 20 candidates at all. No answer is
+generated and no model judges anything, so two runs give the same numbers.
+
+- **7 of the 12 answerable questions are labelled**
+  ([retrieval-labels.yaml](../data/golden-set/retrieval-labels.yaml)). Each
+  label was already in `questions.yaml` as free text and was checked against
+  the corpus: the chunk exists, is admitted and embedded, and contains the
+  passage the hint quotes.
+- **The other 5 are not** (`PP-18`, `U-01` to `U-04`). They cite an article of
+  the Constitution, not a chunk, and the extracted text has lost too many
+  letters for a search to find the article. Guessing would put an unchecked
+  claim into the golden set. They need someone who reads Nepali, and they are
+  the cross-language questions, so they matter most.
+- **No numbers yet.** A first run needs one embedding call per question.
+
+### Open: chunk size has never been checked against the embedding model's limit
+
+Chunks are cut at a size worked out as words / 0.75. `gemini-embedding-001`
+reads at most 2,048 tokens of a text, and Devanagari takes more tokens than
+that estimate assumes. A chunk over the limit is embedded without its end and
+nothing says so. `agrilok-ingest tokens` asks the provider's tokeniser for the
+real count, longest chunks first. It has not been run: it needs a key, and
+whether the tokeniser endpoint accepts the embedding model is not documented.
+
 ## Operational metrics
 
 Separate from answer quality, and measured from the first deployment:
 
+- **Time per stage** of answering, and the whole question by how it was served
+  (from the cache or by a generation), as counts per day
+- **Tokens the provider counted**, in, out and thinking
 - **Cache hit rate** - the mechanism the free tier depends on
 - **Daily API request burn** against the configured ceiling
 - **Review queue depth and age** - a queue that grows unboundedly means content
