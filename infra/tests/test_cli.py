@@ -47,8 +47,10 @@ def _main(argv: list[str]) -> int:
     try:
         return cli.main(argv)
     except KeyboardInterrupt:
-        # Without this a regression would abort the whole test session.
-        pytest.fail("the interrupt escaped main() as a traceback")
+        # Without this a regression would abort the whole test session. It is
+        # a raise, not pytest.fail(), so that every path through this function
+        # visibly ends in a return or a raise.
+        raise AssertionError("the interrupt escaped main() as a traceback") from None
 
 
 @pytest.fixture
