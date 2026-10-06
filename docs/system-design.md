@@ -1128,7 +1128,8 @@ Files: [docs/privacy.md](privacy.md), [apps/web/proxy.ts](../apps/web/proxy.ts),
    ├─ 5  agrilok-api on :8000, and waits for /v1/ready to confirm the database
    └─ 6  next dev on :3000, given the API address and API_INTERNAL_TOKEN from .env
 
- Ctrl+C stops everything it started.
+ Ctrl+C stops everything it started, at any step. Before step 6 has finished
+ it is reported as an interrupted start (exit status 130), not as a failure.
 ```
 
 **Target: two containers and a hosted database.** This is planned, not

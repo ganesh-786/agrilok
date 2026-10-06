@@ -100,6 +100,14 @@ in two groups where relevant:
   its next visit.
 - Library reads from the web server have a five second budget, so a stalled
   API can no longer hold a page or the language switch for two minutes.
+- Ctrl+C while `node scripts/dev.mjs` was still setting up printed a Python
+  traceback and "Migrations failed", although nothing had failed. It now stops
+  the step in progress, says the start was interrupted, and exits with status
+  130. A migration that was still running is rolled back.
+- `agrilok-db migrate` waited up to 130 seconds per address, in silence, for a
+  database that did not answer, then ended in a traceback. It now gives up
+  after 15 seconds with a message naming the host. `PGCONNECT_TIMEOUT`, or
+  `connect_timeout` in the URL, sets a longer wait.
 
 ### Content & sources
 - The golden set moved to `data/golden-set`: 13 pipeline smoke tests, 20 real

@@ -4,7 +4,9 @@
 //
 //   node scripts/dev.mjs
 //
-// Ctrl+C stops everything it started.
+// Ctrl+C stops everything it started, at any point. Pressed while it is still
+// setting up, it stops the step in progress and exits with status 130; that is
+// reported as an interrupted start, never as the step having failed.
 //
 // Node rather than bash like the rest of scripts/: this one has to run the
 // same from PowerShell, cmd and a Unix shell, and Node is already required
@@ -52,6 +54,17 @@ const LOCAL_DB_PORT = "54329";
 // The first page compile of `next dev` can take a while on a slow machine.
 const API_READY_TIMEOUT_MS = 90_000;
 const WEB_READY_TIMEOUT_MS = 180_000;
+// A setup step still going after this long says so, and keeps saying so. uv
+// sync runs quietly and a slow database connection prints nothing, and
+// silence is what makes a slow step look like a frozen one.
+const STEP_STILL_GOING_MS = 20_000;
+// How long a step interrupted by Ctrl+C gets to stop by itself before it is
+// killed. The migration command needs a few seconds to cancel its query and
+// roll back.
+const STEP_STOP_GRACE_MS = 10_000;
+// What a command ended by Ctrl+C exits with: 130 by shell convention, which
+// agrilok-db follows, and 0xC000013A when Windows ends the process itself.
+const INTERRUPTED_EXIT_CODES = new Set([130, 0xc000013a]);
 
 const paint = (code) => (text) => (process.stdout.isTTY ? `\x1b[${code}m${text}\x1b[0m` : text);
 const bold = paint("1");
@@ -76,17 +89,6 @@ function invocation(command, args) {
   return WINDOWS && command === "npm"
     ? { file: [command, ...args].join(" "), args: [], shell: true }
     : { file: command, args, shell: false };
-}
-
-function runStep(command, args, { cwd = ROOT, env = {} } = {}) {
-  const run = invocation(command, args);
-  const result = spawnSync(run.file, run.args, {
-    cwd,
-    env: { ...process.env, ...env },
-    stdio: "inherit",
-    shell: run.shell,
-  });
-  return result.status === 0;
 }
 
 function hasTool(command, args) {
@@ -164,8 +166,66 @@ function webDependenciesStale() {
 // --- Running processes and stopping them ---------------------------------------
 
 const children = [];
+let activeStep = null;
 let stopping = false;
+let running = false;
 let startedLocalDatabase = false;
+
+function killWindowsTree(pid) {
+  // /T takes the whole tree: uv's Python, and npm's shell and Next.js.
+  spawnSync("taskkill", ["/PID", String(pid), "/T", "/F"], { stdio: "ignore" });
+}
+
+// Runs one setup command. Resolves true if it succeeded and false if it
+// failed. If it was interrupted the promise never resolves: shutdown() ends
+// the run instead, so the caller cannot mistake a Ctrl+C for a failure.
+//
+// It uses spawn, not spawnSync. spawnSync blocks Node until the command ends,
+// so a Ctrl+C during a step was never seen here: the command died of it, and
+// the step was reported as having failed.
+function runStep(command, args, { cwd = ROOT, env = {} } = {}) {
+  const run = invocation(command, args);
+  const startedAt = Date.now();
+  const child = spawn(run.file, run.args, {
+    cwd,
+    env: { ...process.env, ...env },
+    // No stdin, for the same reason as in launch() below. No step asks a
+    // question.
+    stdio: ["ignore", "inherit", "inherit"],
+    shell: run.shell,
+  });
+  const exited = new Promise((resolve) => {
+    child.once("error", (error) => resolve({ error }));
+    child.once("exit", (code, signal) => resolve({ code, signal }));
+  });
+  const step = { child, exited };
+  activeStep = step;
+  const stillGoing = setInterval(() => {
+    say(`Still working on that, ${Math.round((Date.now() - startedAt) / 1000)} s so far.`);
+  }, STEP_STILL_GOING_MS);
+  return exited.then(({ error, code, signal }) => {
+    clearInterval(stillGoing);
+    if (activeStep === step) activeStep = null;
+    const never = new Promise(() => {});
+    if (stopping) return never; // shutdown() is waiting on this step and takes over
+    if (error) {
+      say(red(`${command} could not start: ${error.message}`));
+      return false;
+    }
+    if (signal === "SIGINT" || INTERRUPTED_EXIT_CODES.has(code)) {
+      // The step saw the Ctrl+C before this script's own handler ran.
+      shutdown(130, "SIGINT");
+      return never;
+    }
+    return code === 0;
+  });
+}
+
+// Synchronous on purpose: it runs on the way out, when there is nothing left
+// to react to. It is safe to call when the database is not running.
+function stopLocalDatabase() {
+  spawnSync("uv", ["run", "--no-sync", "agrilok-db", "stop"], { cwd: ROOT, stdio: "inherit" });
+}
 
 function launch(name, color, command, args, { cwd = ROOT, env = {} } = {}) {
   const run = invocation(command, args);
@@ -207,15 +267,37 @@ function launch(name, color, command, args, { cwd = ROOT, env = {} } = {}) {
   return child;
 }
 
-function shutdown(code) {
+// `signal` is set when the run is being stopped from outside (Ctrl+C or a
+// SIGTERM), and left out when something this script started has failed.
+function shutdown(code, signal) {
   if (stopping) return;
   stopping = true;
-  say("Stopping...");
+  say(signal && !running ? "Interrupted before startup finished. Stopping..." : "Stopping...");
+  const step = activeStep;
+  if (!step) {
+    finishShutdown(code);
+    return;
+  }
+  // A setup step is still going. Ctrl+C in a terminal reaches it as well as
+  // this script, so it is already stopping itself and only needs time to
+  // finish: the migration command cancels its query and rolls back. A SIGTERM
+  // reaches this script alone, so it is passed on.
+  if (signal === "SIGTERM" && !WINDOWS) step.child.kill("SIGTERM");
+  const tooSlow = new Promise((resolve) => setTimeout(resolve, STEP_STOP_GRACE_MS, "too slow"));
+  Promise.race([step.exited, tooSlow]).then((outcome) => {
+    if (outcome === "too slow" && step.child.pid !== undefined) {
+      if (WINDOWS) killWindowsTree(step.child.pid);
+      else step.child.kill("SIGKILL");
+    }
+    finishShutdown(code);
+  });
+}
+
+function finishShutdown(code) {
   for (const child of children) {
     if (child.exited || child.pid === undefined) continue;
     if (WINDOWS) {
-      // /T takes the whole tree: uv's Python, and npm's shell and Next.js.
-      spawnSync("taskkill", ["/PID", String(child.pid), "/T", "/F"], { stdio: "ignore" });
+      killWindowsTree(child.pid);
     } else {
       try {
         process.kill(-child.pid, "SIGTERM");
@@ -224,13 +306,15 @@ function shutdown(code) {
       }
     }
   }
-  if (startedLocalDatabase) runStep("uv", ["run", "--no-sync", "agrilok-db", "stop"]);
+  if (startedLocalDatabase) stopLocalDatabase();
   say("Everything this script started has stopped.");
   process.exit(code);
 }
 
-process.on("SIGINT", () => shutdown(0));
-process.on("SIGTERM", () => shutdown(0));
+// Status 0 when agrilok was up and was stopped the normal way. Status 130 when
+// it was stopped before it came up, so a caller can tell the two apart.
+process.on("SIGINT", () => shutdown(running ? 0 : 130, "SIGINT"));
+process.on("SIGTERM", () => shutdown(running ? 0 : 130, "SIGTERM"));
 
 async function waitFor(url, isReady, timeoutMs) {
   const deadline = Date.now() + timeoutMs;
@@ -288,14 +372,14 @@ for (const [port, what] of [
 }
 
 say("Checking Python dependencies (uv sync)...");
-if (!runStep("uv", ["sync", "--locked", "--all-packages", "--all-extras", "--quiet"])) {
+if (!(await runStep("uv", ["sync", "--locked", "--all-packages", "--all-extras", "--quiet"]))) {
   stopEarly(
     'uv sync failed. If it says the lockfile needs updating, run "uv lock" and commit uv.lock.',
   );
 }
 if (webDependenciesStale()) {
   say("Installing web dependencies (npm ci)...");
-  if (!runStep("npm", ["ci"], { cwd: WEB_DIR })) stopEarly("npm ci failed in apps/web.");
+  if (!(await runStep("npm", ["ci"], { cwd: WEB_DIR }))) stopEarly("npm ci failed in apps/web.");
 }
 
 const childEnvDatabase = databaseUrl ? { DATABASE_URL: databaseUrl } : {};
@@ -304,10 +388,13 @@ if (isLocalDatabase(databaseUrl)) {
     say(`Using the local database that is already running on port ${LOCAL_DB_PORT}.`);
   } else {
     say("Starting the local database...");
-    if (!runStep("uv", ["run", "--no-sync", "agrilok-db", "start"])) {
+    // Set before the step, not after it: a start that is interrupted or fails
+    // part way can still leave a server running, and this run has to stop it.
+    startedLocalDatabase = true;
+    if (!(await runStep("uv", ["run", "--no-sync", "agrilok-db", "start"]))) {
+      stopLocalDatabase();
       stopEarly("The local database did not start. See the message above.");
     }
-    startedLocalDatabase = true;
   }
 } else {
   say(`Using the database at ${databaseHost(databaseUrl)}.`);
@@ -317,9 +404,12 @@ if (appEnv === "production") {
   say("APP_ENV is production, so migrations are not applied automatically.");
 } else {
   say("Applying pending migrations...");
-  if (!runStep("uv", ["run", "--no-sync", "agrilok-db", "migrate"], { env: childEnvDatabase })) {
-    if (startedLocalDatabase) runStep("uv", ["run", "--no-sync", "agrilok-db", "stop"]);
-    stopEarly("Migrations failed. Nothing else was started.");
+  const migrated = await runStep("uv", ["run", "--no-sync", "agrilok-db", "migrate"], {
+    env: childEnvDatabase,
+  });
+  if (!migrated) {
+    if (startedLocalDatabase) stopLocalDatabase();
+    stopEarly("Migrations failed, for the reason above. Nothing else was started.");
   }
 }
 
@@ -385,6 +475,7 @@ if (!(await waitFor(WEB_URL, async (response) => response.status < 500, WEB_READ
   shutdown(1);
 }
 
+running = true;
 console.log("");
 say(green("agrilok is running."));
 say(`  Web app   ${bold(WEB_URL)}`);
