@@ -11,9 +11,11 @@ from __future__ import annotations
 import argparse
 import sys
 
-from agrilok_infra import devdb
-from agrilok_infra.migrate import MigrationError, migrate
 from agrilok_infra.paths import LOCAL_URL, database_url
+
+# What a command stopped by Ctrl+C exits with: 128 + SIGINT, the shell
+# convention. scripts/dev.mjs reads it as "stopped by you", not "failed".
+EXIT_INTERRUPTED = 130
 
 
 def _redacted(url: str) -> str:
@@ -37,6 +39,31 @@ def main(argv: list[str] | None = None) -> int:
     mig.add_argument("--url", help="database URL (default: DATABASE_URL, then .env)")
     mig.add_argument("--no-seed", action="store_true", help="skip reference data")
     args = parser.parse_args(argv)
+
+    try:
+        return _run(args)
+    except KeyboardInterrupt:
+        # One line, not a traceback. A traceback through the database driver
+        # reads like a broken install when all that happened was Ctrl+C.
+        if args.command == "migrate":
+            # Each migration is one transaction, so this holds wherever the
+            # interrupt landed, including before the connection was made.
+            print(
+                "Stopped. Migrations that had finished stay applied; "
+                "one that was still running was rolled back.",
+                file=sys.stderr,
+            )
+        else:
+            print("Stopped.", file=sys.stderr)
+        return EXIT_INTERRUPTED
+
+
+def _run(args: argparse.Namespace) -> int:
+    # Imported here, not at the top of the file: loading the database driver
+    # is the slowest part of starting up, and a Ctrl+C that lands during it
+    # has to reach the handler in main() like any other.
+    from agrilok_infra import devdb
+    from agrilok_infra.migrate import MigrationError, migrate
 
     try:
         if args.command == "start":

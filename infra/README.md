@@ -55,6 +55,12 @@ installs it.
 run if an applied migration was edited afterwards. Fix a mistake with a new
 migration, never by changing an old one.
 
+It waits 15 seconds per address for the database to answer, then stops with a
+message naming the host. On a slow connection set `PGCONNECT_TIMEOUT`, or
+`connect_timeout` in the URL, to a longer wait. Ctrl+C is safe at any point:
+each migration is one transaction, so finished ones stay applied and the one
+that was running is rolled back. An interrupted run exits with status 130.
+
 Tests that need Postgres create and drop their own scratch database, so they
 never touch your development data. They use `AGRILOK_TEST_DATABASE_URL` if it
 is set (CI points it at a pgvector service container), otherwise the local

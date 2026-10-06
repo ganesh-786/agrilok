@@ -9,20 +9,60 @@ an error, not a silent re-run: the fix for a bad migration is a new migration
 from __future__ import annotations
 
 import hashlib
+import os
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import LiteralString
+from typing import Any, LiteralString
 
 import psycopg
+from psycopg.conninfo import conninfo_to_dict
 
 from agrilok_infra.paths import MIGRATIONS_DIR, SEED_DIR
 
 _MIGRATION_NAME = re.compile(r"^\d{4}_[a-z0-9_]+\.sql$")
 
+# Seconds to wait for the database to answer, per address the host resolves
+# to. Left to itself the driver waits 130 seconds per address and prints
+# nothing, so a dropped connection or a paused hosted database looks like a
+# hang rather than an error. On Windows it waits that long even when the
+# connection is refused outright (measured with psycopg 3.3.6), so there this
+# is also what bounds "nothing is listening on that port".
+CONNECT_TIMEOUT_SECONDS = 15
+
 
 class MigrationError(RuntimeError):
     pass
+
+
+class DatabaseUnreachableError(MigrationError):
+    """No connection was made, so nothing was applied or changed."""
+
+
+def _connect(url: str) -> psycopg.Connection[tuple[Any, ...]]:
+    try:
+        params = conninfo_to_dict(url)
+    except psycopg.ProgrammingError:
+        # The driver's own message can quote part of the string, and the part
+        # it quotes can be the password, so it is not passed on.
+        raise DatabaseUnreachableError(
+            "the database URL is not a valid PostgreSQL connection string. "
+            "It should look like postgresql://user:password@host:5432/database"
+        ) from None
+    # A timeout the developer chose, in the URL or in PGCONNECT_TIMEOUT, wins.
+    chosen = "connect_timeout" in params or "PGCONNECT_TIMEOUT" in os.environ
+    try:
+        if chosen:
+            return psycopg.connect(url, autocommit=True)
+        return psycopg.connect(url, autocommit=True, connect_timeout=CONNECT_TIMEOUT_SECONDS)
+    except psycopg.OperationalError as exc:
+        where = f"{params.get('host') or 'the default host'}:{params.get('port') or 5432}"
+        raise DatabaseUnreachableError(
+            f"could not connect to the database at {where}. Nothing was applied.\n"
+            f"{str(exc).strip()}\n"
+            "Check the network and DATABASE_URL in .env. To wait longer on a slow "
+            "connection, set PGCONNECT_TIMEOUT to a number of seconds."
+        ) from exc
 
 
 @dataclass(frozen=True)
@@ -64,7 +104,7 @@ def migrate(url: str, *, seed: bool = True) -> list[str]:
     applied_now: list[str] = []
     # Autocommit, so each `conn.transaction()` below is a real BEGIN/COMMIT and
     # one migration's failure leaves the ones before it applied and recorded.
-    with psycopg.connect(url, autocommit=True) as conn:
+    with _connect(url) as conn:
         conn.execute(
             "create table if not exists schema_migrations ("
             " version text primary key,"
