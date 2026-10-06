@@ -117,17 +117,25 @@ this list. Regenerate it before any release:
 
 The photographs in apps/web/assets/photos/ are not the project's. Each is
 openly licensed on Wikimedia Commons, was only resized and re-encoded for the
-web, and is credited on the site's /credits page from
-apps/web/content/photos.ts:
+web, and the three the site shows are credited on the photograph itself and on
+the /credits page from apps/web/content/photos.ts (author and licence checked
+against each Commons page on 2026-10-01):
 
-  Mustard terraces, Raniban, Gandaki ... Timothy A. Gonsalves ... CC BY-SA 4.0
+  Paddy terraces in autumn ............. Sasmit Adhikari ........ CC BY 4.0
   Ripe paddy, Dolakha .................. Shantiram Subedi ....... CC BY-SA 4.0
+  Mustard terraces, Raniban, Gandaki ... Timothy A. Gonsalves ... CC BY-SA 4.0
+
+Two more are kept in the folder and not shown:
+
   Terraces, south of Ghara ............. Greg Willis ............ CC BY-SA 2.0
   Harvesting paddy, Dhading ............ Bhawana Gurung ......... CC BY-SA 4.0
-  Paddy terraces in autumn ............. Sasmit Adhikari ........ CC BY 4.0
 
-The source page for each is recorded next to its credit in photos.ts. Reusing
-a photograph means following its own license, not this project's.
+The source page for each shown photograph is recorded next to its credit in
+photos.ts. Reusing a photograph means following its own license, not this
+project's.
 
-Fonts: Mukta (Ek Type) and Martel (Dan Reynolds), both under the SIL Open Font
-License 1.1, served from the app's own origin through next/font.
+Fonts: Noto Sans Devanagari and Noto Serif Devanagari, Copyright 2022 The Noto
+Project Authors (https://github.com/notofonts/devanagari), under the SIL Open
+Font License 1.1. The files in apps/web/app/fonts/ are the unmodified WOFF2
+subsets of those families, served from the app's own origin through next/font.
+The license text is beside them in apps/web/app/fonts/OFL.txt.

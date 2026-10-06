@@ -16,10 +16,10 @@ export default function ErrorPage({
     console.error(error.digest ?? "page error");
   }, [error]);
   return (
-    <div className="wrap max-w-xl py-16">
-      <h1 className="text-3xl font-extrabold">
+    <div className="wrap-narrow py-14">
+      <h1 className="text-headline">
         <span lang="ne">केही मिलेन</span>
-        <span className="mt-1 block text-xl text-ink-3" lang="en">
+        <span className="mt-1 block text-title text-ink-3" lang="en">
           Something went wrong
         </span>
       </h1>

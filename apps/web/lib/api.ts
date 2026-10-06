@@ -2,7 +2,9 @@ import "server-only";
 
 import { createHash } from "node:crypto";
 import { headers } from "next/headers";
+import { cache } from "react";
 
+import { ApiUnavailableError, readApiJson } from "@/lib/api-read";
 import { API_URL, INTERNAL_TOKEN } from "@/lib/config";
 import type {
   AskResponse,
@@ -14,12 +16,7 @@ import type {
   SearchResults,
 } from "@/lib/types";
 
-export class ApiUnavailableError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "ApiUnavailableError";
-  }
-}
+export { ApiUnavailableError } from "@/lib/api-read";
 
 /**
  * A stable, non-reversible id for the browser behind this request, used only
@@ -39,28 +36,15 @@ async function request<T>(
   init: RequestInit & { revalidate?: number | false } = {},
 ): Promise<T | null> {
   const { revalidate, ...rest } = init;
-  let response: Response;
-  try {
-    response = await fetch(`${API_URL}${path}`, {
-      ...rest,
-      headers: {
-        accept: "application/json",
-        ...(INTERNAL_TOKEN ? { "x-agrilok-internal": INTERNAL_TOKEN } : {}),
-        ...rest.headers,
-      },
-      ...(revalidate === undefined
-        ? { cache: "no-store" as const }
-        : { next: { revalidate: revalidate === false ? 0 : revalidate } }),
-      signal: rest.signal ?? AbortSignal.timeout(120_000),
-    });
-  } catch (error) {
-    throw new ApiUnavailableError(`the API did not respond: ${(error as Error).message}`);
-  }
-  if (response.status === 404) return null;
-  if (!response.ok) {
-    throw new ApiUnavailableError(`the API answered ${response.status}`);
-  }
-  return (await response.json()) as T;
+  return readApiJson<T>(`${API_URL}${path}`, {
+    ...rest,
+    headers: {
+      accept: "application/json",
+      ...(INTERNAL_TOKEN ? { "x-agrilok-internal": INTERNAL_TOKEN } : {}),
+      ...rest.headers,
+    },
+    ...(revalidate === undefined ? { cache: "no-store" as const } : { next: { revalidate } }),
+  });
 }
 
 function query(params: Record<string, string | undefined | null>): string {
@@ -73,21 +57,28 @@ function query(params: Record<string, string | undefined | null>): string {
 }
 
 export const api = {
-  meta: () => request<Meta>("/v1/meta", { revalidate: 60 }),
+  // Passing a timeout signal opts fetch out of React's automatic request
+  // memoization. Cache these server reads explicitly for one render only;
+  // metadata and the page must not start separate requests for the same record.
+  meta: cache(() => request<Meta>("/v1/meta", { revalidate: 60 })),
 
-  levelDocuments: (level: LevelCode, province?: string, group?: string) =>
+  levelDocuments: cache((level: LevelCode, province?: string, group?: string) =>
     request<LevelLibrary>(`/v1/levels/${level}/documents${query({ province, group })}`, {
       revalidate: 300,
     }),
+  ),
 
-  document: (id: string) =>
+  document: cache((id: string) =>
     request<DocumentDetail>(`/v1/documents/${encodeURIComponent(id)}`, { revalidate: 300 }),
+  ),
 
-  commonQuestions: (level: LevelCode) =>
+  commonQuestions: cache((level: LevelCode) =>
     request<CommonQuestion[]>(`/v1/levels/${level}/common-questions`, { revalidate: 120 }),
+  ),
 
-  answer: (id: string) =>
+  answer: cache((id: string) =>
     request<AskResponse>(`/v1/answers/${encodeURIComponent(id)}`, { revalidate: 60 }),
+  ),
 
   search: async (level: LevelCode, q: string, province?: string, group?: string) =>
     request<SearchResults>(

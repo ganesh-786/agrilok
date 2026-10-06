@@ -5,10 +5,24 @@
 | Document | Read it when |
 |---|---|
 | [architecture.md](architecture.md) | You want to know how the pieces fit, and why |
+| [system-design.md](system-design.md) | You want every flow drawn as the code runs it today, the RAG pipeline step by step, and what still stands between it and production |
 | [roadmap.md](roadmap.md) | You want to know what is built, what is next, and what the Phase 0 gate requires |
 | [product-brief.md](product-brief.md) | You want the problem analysis and the honest competitive picture |
 
 ## Working on the system
+
+Student UI work starts with [the quality contract](ui-quality-contract.md),
+[the research behind it](ui-quality-research.md) and
+[the design system as built](design-system.md). They supersede older frozen
+visual and screen-map guidance.
+
+| Document | Covers |
+|---|---|
+| [student-experience.md](student-experience.md) | The screen map, journeys, exam profile rules and every designed state |
+| [design-system.md](design-system.md) | Colour, type, layout, motion and navigation as built, with what was measured and what was dropped |
+| [ui-redesign-review.md](ui-redesign-review.md) | What each pass changed, the checks that were run, and what was not verified |
+| [usability-testing.md](usability-testing.md) | The plan for the first round with students. No round has run |
+| [content-latency-research.md](content-latency-research.md) | Why a slow API held pages for two minutes, and the read budget that fixed it |
 
 | Document | Covers |
 |---|---|

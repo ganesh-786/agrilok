@@ -106,6 +106,7 @@ export const privacyPage = {
       "तपाईंको व्यक्तिगत जानकारी AI मा कहिल्यै पठाइँदैन। पठाइने कुरा सार्वजनिक पाठ्यक्रमको पाठ र तपाईंको प्रश्न मात्र हो।",
       "प्रश्नमा फोन नम्बर वा इमेल देखिए त्यो प्रश्न नै पठाइँदैन, र तपाईंलाई त्यो हटाउन भनिन्छ।",
       "खाता चाहिँदैन। हामी तपाईंको नाम, इमेल वा फोन राख्दैनौं।",
+      "अधूरो प्रश्न यही ट्याबमा अस्थायी रूपमा राखिन्छ, ताकि पृष्ठ फेरि खोल्दा हराओस् भन्ने नहोस्। ट्याब बन्द भएपछि यो मस्यौदा हट्छ।",
       "सोधिएका प्रश्न र उत्तर अरू विद्यार्थीलाई देखाउन सुरक्षित गरिन्छन्। त्यसैले प्रश्नमा आफ्नो बारेमा केही नलेख्नुहोस्।",
       "धेरै छिटो प्रश्न सोधिएको रोक्न तपाईंको इन्टरनेट ठेगानाबाट बनेको, उल्टाउन नमिल्ने छोटो पहिचान केही समय मेमोरीमा राखिन्छ। यो कहीँ लेखिँदैन, र हरेक दिन फेरिन्छ।",
       "विज्ञापन वा ट्र्याकर छैन। दिनको कुल प्रश्न संख्या जस्ता गन्ती मात्र राखिन्छ।",
@@ -119,6 +120,7 @@ export const privacyPage = {
       "Your personal information is never sent to the AI. What is sent is public syllabus text and your question, nothing else.",
       "A question that looks like it contains a phone number or email is not sent at all, and you are asked to remove it.",
       "No account is needed. We do not keep your name, email or phone number.",
+      "An unfinished question is kept temporarily in this tab so reloading the page does not lose it. Closing the tab clears this draft.",
       "Questions and answers are saved so other students can see them. So do not write anything about yourself in a question.",
       "To stop questions being sent too fast, a short, non-reversible id derived from your internet address is kept in memory for a while. It is never written anywhere, and it changes every day.",
       "No advertising and no trackers. Only counts, such as how many questions were asked today, are kept.",
@@ -130,12 +132,13 @@ export const privacyPage = {
 
 export const creditsPage = {
   ne: {
-    title: "फोटो र सफ्टवेयर",
+    title: "श्रेय",
     photosTitle: "फोटोहरू",
     photosLead:
-      "सबै फोटो Wikimedia Commons मा खुला इजाजतपत्रमा उपलब्ध छन्। वेबका लागि आकार घटाइएको मात्र हो।",
+      "सबै फोटो Wikimedia Commons मा खुला इजाजतपत्रमा उपलब्ध छन्। वेबका लागि आकार घटाइएको र फेरि सङ्कुचन गरिएको मात्र हो; अरू केही बदलिएको छैन।",
     fontsTitle: "फन्ट",
-    fonts: "Mukta (Ek Type) र Martel (Dan Reynolds), दुवै SIL Open Font License अन्तर्गत।",
+    fonts:
+      "Noto Sans Devanagari र Noto Serif Devanagari (The Noto Project Authors), SIL Open Font License 1.1 अन्तर्गत। पाठका लागि Sans र शीर्षकका लागि Serif प्रयोग भएको छ। नेपाली र अङ्ग्रेजीका फन्ट फाइल यही वेबसाइटबाट लोड हुन्छन्।",
     softwareTitle: "सफ्टवेयर",
     software:
       "Next.js, React, Tailwind CSS, FastAPI, PostgreSQL, pgvector, Scrapy, pypdfium2 र अन्य खुला स्रोत सफ्टवेयर, प्रत्येक आफ्नै इजाजतपत्रमा।",
@@ -145,12 +148,13 @@ export const creditsPage = {
     source: "स्रोत",
   },
   en: {
-    title: "Photos and software",
+    title: "Credits",
     photosTitle: "Photographs",
     photosLead:
-      "All photographs are openly licensed on Wikimedia Commons. They were only resized for the web.",
+      "Every photograph is openly licensed on Wikimedia Commons. Each was only resized and re-encoded for the web; nothing else was changed.",
     fontsTitle: "Fonts",
-    fonts: "Mukta (Ek Type) and Martel (Dan Reynolds), both under the SIL Open Font License.",
+    fonts:
+      "Noto Sans Devanagari and Noto Serif Devanagari (The Noto Project Authors), under the SIL Open Font License 1.1. Sans sets the text and Serif the headings. The Nepali and Latin font files are served by this website.",
     softwareTitle: "Software",
     software:
       "Next.js, React, Tailwind CSS, FastAPI, PostgreSQL, pgvector, Scrapy, pypdfium2 and other open-source software, each under its own license.",

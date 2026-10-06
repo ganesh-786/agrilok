@@ -1,8 +1,12 @@
 .next
 node_modules
 public/service-worker.js
+tests/fixtures/service-worker-v1.js
 next-env.d.ts
 package-lock.json
 tsconfig.json
 # Prose is wrapped by hand; prettier reflows list continuations badly.
 *.md
+blob-report/
+playwright-report/
+test-results/

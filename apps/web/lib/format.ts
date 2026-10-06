@@ -58,3 +58,17 @@ export function labelFor(
   if (!hit) return code;
   return lang === "ne" ? hit.name_ne : hit.name_en;
 }
+
+/** Fill {name} placeholders in a dictionary template. Numbers use the page's digits. */
+export function fmt(template: string, vars: Record<string, string | number>, lang: Lang): string {
+  return template.replace(/\{(\w+)\}/g, (match, key: string) => {
+    const value = vars[key];
+    if (value === undefined) return match;
+    return typeof value === "number" ? localDigits(value, lang) : value;
+  });
+}
+
+/** Pick the page's language from text given in both. */
+export function tr(text: { ne: string; en: string }, lang: Lang): string {
+  return text[lang];
+}

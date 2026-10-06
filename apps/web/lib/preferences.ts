@@ -1,11 +1,12 @@
 import "server-only";
 
-import { cookies, headers } from "next/headers";
+import { cookies } from "next/headers";
 
+import type { ExamProfile } from "@/lib/contracts";
 import { dictionaries, isLang, type Dictionary, type Lang } from "@/lib/i18n";
+import { PROFILE_COOKIE, parseProfile } from "@/lib/profile";
 
 export const LANG_COOKIE = "agrilok_lang";
-export const LITE_COOKIE = "agrilok_lite";
 
 export async function getLang(): Promise<Lang> {
   const value = (await cookies()).get(LANG_COOKIE)?.value;
@@ -17,14 +18,7 @@ export async function getDictionary(): Promise<{ lang: Lang; t: Dictionary }> {
   return { lang, t: dictionaries[lang] };
 }
 
-/**
- * Lite mode hides photographs. On by choice, or automatically when the
- * browser asks to save data (the `Save-Data: on` header many Android phones
- * send on metered connections).
- */
-export async function getLite(): Promise<boolean> {
-  const choice = (await cookies()).get(LITE_COOKIE)?.value;
-  if (choice === "1") return true;
-  if (choice === "0") return false;
-  return (await headers()).get("save-data")?.toLowerCase() === "on";
+/** The saved exam profile, or null when there is none or it does not parse. */
+export async function getProfile(): Promise<ExamProfile | null> {
+  return parseProfile((await cookies()).get(PROFILE_COOKIE)?.value);
 }
