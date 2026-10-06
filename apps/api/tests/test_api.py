@@ -159,3 +159,47 @@ async def test_asking_too_fast_is_rate_limited(client: httpx.AsyncClient) -> Non
     assert statuses[:8] == [200] * 8
     assert statuses[8] == 429
     ASK_LIMITS._windows.clear()
+
+
+async def test_status_reports_how_long_questions_took_and_what_they_cost(
+    client: httpx.AsyncClient, runtime: Runtime, fake: FakeGemini, excerpts: dict[str, str]
+) -> None:
+    ASK_LIMITS._windows.clear()
+    await _seed(runtime, excerpts)
+    question = "How many marks is the written examination?"
+    fake.embeddings[question] = SOIL
+    reply = generation_response(
+        {
+            "sufficient": True,
+            "answer": "The written examination carries 200 marks [LUM-01-000].",
+            "claims": [
+                {
+                    "claim": "The written examination carries 200 marks.",
+                    "source_id": "LUM-01-000",
+                    "quote": "नलम्खत परीक्षा (Written Examination) प\n\nू\n\nणागङ्क :- 200",
+                }
+            ],
+        }
+    )
+    reply["usageMetadata"] = {"promptTokenCount": 5200, "candidatesTokenCount": 640}
+    fake.generations.append(reply)
+
+    first = (await client.post("/v1/levels/level_7/ask", json={"question": question})).json()
+    again = (await client.post("/v1/levels/level_7/ask", json={"question": question})).json()
+    status = (await client.get("/v1/status")).json()
+
+    assert (first["status"], again["cache"]["kind"]) == ("answered", "exact")
+    # A student's response carries the answer, never how it was measured.
+    assert "timings" not in first
+    assert "usage" not in first
+    assert status["today"] == {"ask": 2, "answered": 1, "cache_hit_exact": 1}
+    assert status["cache_hit_rate_today"] == 0.5
+    assert status["tokens_today"] == {"generate.prompt": 5200, "generate.output": 640}
+    assert status["attempts_today"] == {"embed": 1, "generate": 1}
+    timings = status["timings_today"]
+    assert timings["total_live"]["count"] == 1
+    assert timings["total_exact"]["count"] == 1
+    assert timings["generate"]["count"] == 1
+    assert timings["cache"]["count"] == 2, "both questions looked in the cache"
+    assert timings["total_exact"]["p95_ms"] is not None
+    ASK_LIMITS._windows.clear()
