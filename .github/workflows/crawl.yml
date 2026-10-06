@@ -45,7 +45,7 @@ jobs:
       # Live only when a person started the run and unticked "dry run".
       DRY_RUN: ${{ (github.event_name == 'workflow_dispatch' && !inputs.dry_run) && 'false' || 'true' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: astral-sh/setup-uv@v6
         with:
