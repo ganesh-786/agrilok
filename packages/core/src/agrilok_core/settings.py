@@ -50,12 +50,24 @@ class Settings(BaseSettings):
     # terms (ADR-0004). Observed free-tier limits on 2026-09-18: 500 requests
     # a day for Lite models, 1,000 for embeddings. Dated observations, not
     # constants: check https://ai.google.dev/gemini-api/docs/rate-limits.
+    # Request starts in any 60 seconds, counted per kind: generation and
+    # embedding each have their own window, because the provider counts each
+    # model against its own allowance. Requests are not spaced out; a
+    # question's embedding and generation start as soon as there is room.
+    # The embedding ceiling is the generation one unless it is set.
     gemini_max_requests_per_minute: int = Field(default=10, ge=1)
+    gemini_max_embed_requests_per_minute: int | None = Field(default=None, ge=1)
     gemini_max_requests_per_day: int = Field(default=400, ge=0)
     gemini_max_embed_requests_per_day: int = Field(default=900, ge=0)
     # Answers carry a verbatim quote per claim and Devanagari is token-heavy;
     # at 30 seconds long answers were cut off and retried from scratch.
     gemini_request_timeout_seconds: float = Field(default=90, gt=0)
+    # The whole budget for one question: waiting for a request slot, every
+    # attempt and every retry. It must stay below the web server's own limit
+    # for Ask (180 seconds, apps/web/lib/api.ts), so the API answers
+    # "unavailable" itself instead of working on after the student was told
+    # so. It leaves room for one full generation attempt after the embedding.
+    ask_deadline_seconds: float = Field(default=150, gt=0)
 
     # --- Database ----------------------------------------------------------
     database_url: str = "postgresql://postgres@127.0.0.1:54329/agrilok"
