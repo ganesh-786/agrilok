@@ -212,8 +212,10 @@ def render_markdown(summary: dict[str, Any]) -> str:
     if summary.get("latency_ms"):
         lines += [
             "",
-            "Time per stage, in milliseconds, for questions that did not error. The cache is "
-            "off, so this is what a new question costs.",
+            (
+                "Time per stage, in milliseconds, for questions that did not error. The cache "
+                "is off, so this is what a new question costs."
+            ),
             "",
             "| Stage | Questions | Median | 90th percentile | Slowest |",
             "|---|---|---|---|---|",
