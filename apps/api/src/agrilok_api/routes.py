@@ -24,9 +24,10 @@ from agrilok_api.schemas import (
     Reason,
     Review,
     SearchResults,
+    StageTiming,
     Status,
 )
-from agrilok_core import quota
+from agrilok_core import metrics, quota
 from agrilok_core.citations import display_quote
 from agrilok_core.dates import nepal_date
 from agrilok_core.levels import ExamLevel
@@ -317,11 +318,17 @@ async def status(request: Request) -> Status:
         cur = await conn.execute(
             "select metric, count from usage_daily where day = %s", (quota.local_day(),)
         )
-        today = {row["metric"]: int(row["count"]) for row in await cur.fetchall()}
-    asked = today.get("ask", 0)
-    hits = today.get("cache_hit_exact", 0) + today.get("cache_hit_similar", 0)
+        day = metrics.read({row["metric"]: int(row["count"]) for row in await cur.fetchall()})
+    asked = day.counts.get("ask", 0)
+    hits = day.counts.get("cache_hit_exact", 0) + day.counts.get("cache_hit_similar", 0)
     return Status(
         live=await _live_status(request),
-        today=today,
+        today=day.counts,
         cache_hit_rate_today=round(hits / asked, 3) if asked else None,
+        timings_today={
+            stage: StageTiming(count=t.count, p50_ms=t.p50_ms, p95_ms=t.p95_ms)
+            for stage, t in day.timings.items()
+        },
+        tokens_today=day.tokens,
+        attempts_today=day.attempts,
     )

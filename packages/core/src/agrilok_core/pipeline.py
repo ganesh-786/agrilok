@@ -16,6 +16,17 @@ The order is the design (ADR-0003, ADR-0004, ADR-0008):
 At no point does a failure fall back to answering from model memory. Quota
 exhaustion and provider outages degrade to "live answers are paused", while
 cached content keeps serving.
+
+Two things run alongside every step. A question has one time budget
+(agrilok_core.deadline), so it ends as "unavailable" on our terms and never
+outlives the web server's patience. And each step is timed and each model
+call's tokens are counted (agrilok_core.metrics), as counts per day with no
+question text, because a pipeline that is not measured cannot be shown to be
+slow, or to have been made faster.
+
+Statements that do not depend on each other go to the database together
+(db.fetch_together). The database is rarely in the same place as the API, and
+a cached answer waits for little else.
 """
 
 from __future__ import annotations
@@ -23,6 +34,10 @@ from __future__ import annotations
 import json
 import logging
 import secrets
+import time
+from collections import Counter
+from collections.abc import Iterator, Mapping, Sequence
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import StrEnum
@@ -30,11 +45,17 @@ from typing import Any
 
 from psycopg.types.json import Jsonb
 
-from agrilok_core import cache, quota
+from agrilok_core import cache, metrics, quota
 from agrilok_core.citations import InventedCitationError, display_quote, number_citations
 from agrilok_core.dates import nepal_date
-from agrilok_core.db import Conn, l2_normalize, vector_literal
-from agrilok_core.gemini import GeminiError, GeminiNotConfiguredError
+from agrilok_core.db import Conn, Statement, fetch_together, l2_normalize, vector_literal
+from agrilok_core.deadline import Deadline
+from agrilok_core.gemini import (
+    CallStats,
+    GeminiDeadlineError,
+    GeminiError,
+    GeminiNotConfiguredError,
+)
 from agrilok_core.levels import ExamLevel, ReviewState
 from agrilok_core.pii import find_personal_data
 from agrilok_core.prompt import (
@@ -118,6 +139,11 @@ class AskResult:
     withheld_answer: str | None = None
     support_check: list[dict[str, Any]] | None = None
     detail: str | None = None
+    # Milliseconds per stage of this question, and what the provider counted
+    # for it (tokens, attempts). Numbers only. For the log line, the daily
+    # counts and the evaluation report; never part of a student's response.
+    timings: dict[str, int] = field(default_factory=dict)
+    usage: dict[str, int] = field(default_factory=dict)
 
 
 def without_nul(value: Any) -> Any:
@@ -218,40 +244,44 @@ def _citation(n: int, cand: Candidate, quotes: list[str]) -> dict[str, Any]:
     }
 
 
-async def _store(
-    conn: Conn,
-    result: AskResult,
-    *,
-    qhash: str,
-    query_vector: list[float] | None,
-    revision: int,
-    origin: str,
-    cited_documents: dict[str, str],
-) -> None:
-    answer_id = _new_answer_id()
-    await conn.execute(
-        """
-        insert into answers (
-            id, exam_level, province, service_group, question, question_norm, question_hash,
-            question_embedding, status, refusal_stage, answer_text, citations, consulted,
-            support_check, withheld_answer, model, prompt_version, check_version,
-            corpus_revision, cited_documents, origin
-        ) values (
-            %(id)s, %(level)s, %(province)s, %(group)s, %(question)s, %(norm)s, %(hash)s,
-            %(qv)s::vector, %(status)s, %(stage)s, %(answer)s, %(citations)s, %(consulted)s,
-            %(support)s, %(withheld)s, %(model)s, %(prompt)s, %(check)s,
-            %(revision)s, %(cited)s, %(origin)s
-        )
-        """,
+@dataclass(frozen=True)
+class _Kept:
+    """What storing a result needs beyond the result itself."""
+
+    qhash: str
+    query_vector: list[float] | None
+    revision: int
+    origin: str
+    cited_documents: dict[str, str] = field(default_factory=dict)
+
+
+_STORE_SQL = """
+insert into answers (
+    id, exam_level, province, service_group, question, question_norm, question_hash,
+    question_embedding, status, refusal_stage, answer_text, citations, consulted,
+    support_check, withheld_answer, model, prompt_version, check_version,
+    corpus_revision, cited_documents, origin
+) values (
+    %(id)s, %(level)s, %(province)s, %(group)s, %(question)s, %(norm)s, %(hash)s,
+    %(qv)s::vector, %(status)s, %(stage)s, %(answer)s, %(citations)s, %(consulted)s,
+    %(support)s, %(withheld)s, %(model)s, %(prompt)s, %(check)s,
+    %(revision)s, %(cited)s, %(origin)s
+)
+"""
+
+
+def _store_statement(result: AskResult, keep: _Kept) -> Statement:
+    return (
+        _STORE_SQL,
         {
-            "id": answer_id,
+            "id": result.answer_id,
             "level": result.level.value,
             "province": result.province,
             "group": result.service_group,
             "question": result.question,
             "norm": question_key(result.question),
-            "hash": qhash,
-            "qv": vector_literal(query_vector) if query_vector else None,
+            "hash": keep.qhash,
+            "qv": vector_literal(keep.query_vector) if keep.query_vector else None,
             "status": result.status,
             "stage": result.stage.value if result.stage else None,
             "answer": result.answer_text,
@@ -262,29 +292,33 @@ async def _store(
             "model": result.model,
             "prompt": PROMPT_VERSION,
             "check": SUPPORT_CHECK_VERSION,
-            "revision": revision,
-            "cited": Jsonb(cited_documents),
-            "origin": origin,
+            "revision": keep.revision,
+            "cited": Jsonb(keep.cited_documents),
+            "origin": keep.origin,
         },
     )
-    result.answer_id = answer_id
 
 
-async def _refresh_review_states(conn: Conn, citations: list[dict[str, Any]]) -> None:
+_REVIEW_STATES_SQL = "select id, review_state from chunks where id = any(%s)"
+
+
+def _cited_chunk_ids(citations: list[dict[str, Any]]) -> list[str]:
+    return [c["chunk_id"] for c in citations if c.get("chunk_id")]
+
+
+def _apply_review_states(
+    citations: list[dict[str, Any]], rows: Sequence[Mapping[str, Any]]
+) -> None:
     """Show today's review state for each cited chunk, not the one it had when cached."""
-    ids = [c["chunk_id"] for c in citations if c.get("chunk_id")]
-    if not ids:
-        return
-    cur = await conn.execute("select id, review_state from chunks where id = any(%s)", (ids,))
-    states = {r["id"]: r["review_state"] for r in await cur.fetchall()}
+    states = {r["id"]: r["review_state"] for r in rows}
     for c in citations:
         if c.get("chunk_id") in states:
             c["review_state"] = states[c["chunk_id"]]
 
 
-async def from_row(conn: Conn, row: dict[str, Any], cache_info: CacheInfo) -> AskResult:
-    citations = list(row.get("citations") or [])
-    await _refresh_review_states(conn, citations)
+def _result_from_row(
+    row: Mapping[str, Any], citations: list[dict[str, Any]], cache_info: CacheInfo
+) -> AskResult:
     stage = Stage(row["refusal_stage"]) if row.get("refusal_stage") else None
     return AskResult(
         question=row["question"],
@@ -309,6 +343,15 @@ async def from_row(conn: Conn, row: dict[str, Any], cache_info: CacheInfo) -> As
     )
 
 
+async def from_row(conn: Conn, row: Mapping[str, Any], cache_info: CacheInfo) -> AskResult:
+    citations = list(row.get("citations") or [])
+    ids = _cited_chunk_ids(citations)
+    if ids:
+        cur = await conn.execute(_REVIEW_STATES_SQL, (ids,))
+        _apply_review_states(citations, await cur.fetchall())
+    return _result_from_row(row, citations, cache_info)
+
+
 async def get_answer(runtime: Runtime, answer_id: str) -> AskResult | None:
     async with runtime.pool.connection() as conn:
         cur = await conn.execute(
@@ -318,6 +361,92 @@ async def get_answer(runtime: Runtime, answer_id: str) -> AskResult | None:
         if row is None:
             return None
         return await from_row(conn, row, CacheInfo(served_count=int(row["served_count"])))
+
+
+@dataclass
+class _Run:
+    """What one question spends as it goes: time per stage, and what the provider counted.
+
+    Nothing here names the question or the person asking. It ends up as counts
+    per day (agrilok_core.metrics) and as numbers on the question's own log line.
+    """
+
+    deadline: Deadline
+    started: float = field(default_factory=time.perf_counter)
+    ms: dict[str, int] = field(default_factory=dict)
+    stats: CallStats = field(default_factory=CallStats)
+
+    @contextmanager
+    def stage(self, name: str) -> Iterator[None]:
+        began = time.perf_counter()
+        try:
+            yield
+        finally:
+            spent = round((time.perf_counter() - began) * 1000)
+            self.ms[name] = self.ms.get(name, 0) + spent
+
+    def close(self, result: AskResult, path: str) -> dict[str, int]:
+        """Put the numbers on the result, and return them as counts for the day.
+
+        `path` says how the question was served ("exact", "similar", "live" or
+        "none"), because a cached answer and a generated one differ by two
+        orders of magnitude and one total for both would describe neither.
+        """
+        result.timings = {**self.ms, "total": round((time.perf_counter() - self.started) * 1000)}
+        waited = round(self.stats.waited_seconds * 1000)
+        if waited:
+            # Time our own limiter held a request back, inside the stage it delayed.
+            result.timings["wait"] = waited
+        result.usage = {
+            **{metrics.token_metric(k): v for k, v in self.stats.tokens.items() if v},
+            **{metrics.attempt_metric(k): v for k, v in self.stats.attempts.items() if v},
+        }
+        counts: Counter[str] = Counter(result.usage)
+        for stage, ms in result.timings.items():
+            counts[metrics.timing_metric(f"total_{path}" if stage == "total" else stage, ms)] += 1
+        return dict(counts)
+
+
+def _outcome_metric(result: AskResult) -> str:
+    if result.status == "answered":
+        return "answered"
+    if result.stage is Stage.QUOTA:
+        return "quota_blocked"
+    return f"refused_{result.stage.value if result.stage else 'unknown'}"
+
+
+def _log(result: AskResult, qhash: str, served: str) -> None:
+    # A question refused for carrying personal data leaves no trace of itself,
+    # not even a hash: a phone number is short enough to be guessed from one.
+    traced = "-" if result.stage is Stage.PERSONAL_DATA else qhash[:12]
+    log.info(
+        "ask level=%s stage=%s served=%s model=%s q=%s",
+        result.level.value,
+        result.stage or "answered",
+        served,
+        result.model,
+        traced,
+        # Durations and token counts only. The question appears as a hash
+        # prefix, as it did before (docs/privacy.md).
+        extra={"fields": {"ms": result.timings, "usage": result.usage}},
+    )
+
+
+def _unavailable(result: AskResult, exc: Exception, otherwise: str) -> AskResult:
+    result.stage = Stage.UNAVAILABLE
+    result.detail = (
+        "this took too long; please try again"
+        if isinstance(exc, GeminiDeadlineError)
+        else otherwise
+    )
+    return result
+
+
+def _out_of_quota(result: AskResult, exc: QuotaExceededError) -> AskResult:
+    result.stage = Stage.QUOTA
+    result.quota_resets_at = quota.next_reset()
+    result.detail = f"today's {exc.kind} allowance is used up"
+    return result
 
 
 async def ask(
@@ -338,120 +467,161 @@ async def ask(
         question=q, level=level, province=province, service_group=service_group, status="refused"
     )
     qhash = cache.question_hash(level.value, province, service_group, q)
+    run = _Run(deadline=Deadline.after(settings.ask_deadline_seconds))
 
+    found = find_personal_data(q)
+    if found:
+        result.stage = Stage.PERSONAL_DATA
+        result.personal_data = found
+        return await _finish(runtime, result, run, qhash, count_ask=True)
+
+    # One round trip: count the question, read the corpus revision, and look
+    # for a stored answer. The revision is read here, before retrieval, on
+    # purpose. A refusal stored below is only reused at the revision it
+    # carries, so one read before a document was admitted is at worst judged
+    # again once; one read after it would be kept as if it had seen it.
     async with runtime.pool.connection() as conn:
-        await quota.bump(conn, "ask")
-        found = find_personal_data(q)
-        if found:
-            await quota.bump(conn, "refused_personal_data")
-            result.stage = Stage.PERSONAL_DATA
-            result.personal_data = found
-            return result
-        if use_cache:
-            row = await cache.lookup_exact(conn, qhash)
-            if row is not None:
-                served = await cache.record_hit(conn, row["id"])
-                await quota.bump(conn, "cache_hit_exact")
-                return await from_row(
-                    conn, row, CacheInfo(hit=True, kind="exact", served_count=served)
-                )
+        with run.stage("cache"):
+            statements: list[Statement] = [
+                quota.bump_statement({"ask": 1}),
+                cache.REVISION_STATEMENT,
+            ]
+            if use_cache:
+                statements.append(cache.exact_statement(qhash))
+            _, revision_rows, *exact = await fetch_together(conn, statements)
+            revision = int(revision_rows[0]["revision"]) if revision_rows else 0
+            row = exact[0][0] if exact and exact[0] else None
+            if row is not None and not await cache.accept(
+                conn,
+                row,
+                revision=revision,
+                reason="a cited document changed or the corpus grew",
+            ):
+                row = None
+        if row is not None:
+            return await _serve_hit(conn, row, CacheInfo(hit=True, kind="exact"), run, qhash)
 
     if not runtime.gemini.configured:
         result.stage = Stage.UNAVAILABLE
         result.detail = "the model is not configured"
-        return result
+        return await _finish(runtime, result, run, qhash)
 
     try:
-        query_vector = l2_normalize(await runtime.gemini.embed_query(q))
+        with run.stage("embed"):
+            query_vector = l2_normalize(
+                await runtime.gemini.embed_query(q, deadline=run.deadline, stats=run.stats)
+            )
     except QuotaExceededError as exc:
-        return await _quota_refusal(runtime, result, exc)
+        return await _finish(runtime, _out_of_quota(result, exc), run, qhash)
     except (GeminiError, GeminiNotConfiguredError) as exc:
         log.warning("embedding unavailable: %s", exc)
-        result.stage = Stage.UNAVAILABLE
-        result.detail = "search is temporarily unavailable"
-        return result
+        _unavailable(result, exc, "search is temporarily unavailable")
+        return await _finish(runtime, result, run, qhash)
 
     async with runtime.pool.connection() as conn:
+        similar = None
         if use_cache:
-            similar = await cache.lookup_similar(
-                conn,
-                level=level.value,
-                province=province,
-                group=service_group,
-                query_vector=query_vector,
-                threshold=settings.semantic_cache_similarity_threshold,
-            )
-            if similar is not None:
-                row, similarity = similar
-                served = await cache.record_hit(conn, row["id"])
-                await quota.bump(conn, "cache_hit_similar")
-                return await from_row(
+            with run.stage("search"):
+                similar = await cache.lookup_similar(
                     conn,
-                    row,
-                    CacheInfo(
-                        hit=True,
-                        kind="similar",
-                        matched_question=row["question"],
-                        similarity=round(similarity, 3),
-                        served_count=served,
-                    ),
+                    level=level.value,
+                    province=province,
+                    group=service_group,
+                    query_vector=query_vector,
+                    threshold=settings.semantic_cache_similarity_threshold,
                 )
-        retrieval = await retrieve(
-            conn,
-            question=q,
-            query_vector=query_vector,
-            filters=Filters(level=level, province=province, service_group=service_group),
-            top_k=settings.retrieval_top_k,
-            min_score=settings.retrieval_min_score,
-            keyword_min_score=settings.retrieval_keyword_min_score,
-        )
-        revision = await cache.corpus_revision(conn)
+        if similar is not None:
+            row, similarity = similar
+            info = CacheInfo(
+                hit=True,
+                kind="similar",
+                matched_question=row["question"],
+                similarity=round(similarity, 3),
+            )
+            return await _serve_hit(conn, row, info, run, qhash)
+        # Retrieval runs only once the near-duplicate cache has missed. Sending
+        # the two together would save a round trip on a miss and spend the
+        # slowest database work on every hit.
+        with run.stage("search"):
+            retrieval = await retrieve(
+                conn,
+                question=q,
+                query_vector=query_vector,
+                filters=Filters(level=level, province=province, service_group=service_group),
+                top_k=settings.retrieval_top_k,
+                min_score=settings.retrieval_min_score,
+                keyword_min_score=settings.retrieval_keyword_min_score,
+            )
+
+    def keep(cited: dict[str, str] | None = None) -> _Kept | None:
+        if not store:
+            return None
+        return _Kept(qhash, query_vector, revision, origin, cited or {})
 
     result.consulted = _consulted(retrieval)
     if not retrieval.results:
         result.stage = Stage.NO_SOURCES
-        return await _finish(runtime, result, qhash, query_vector, revision, origin, {}, store)
+        return await _finish(runtime, result, run, qhash, keep())
 
     sources = [_source_for_prompt(c) for c in retrieval.results]
     try:
-        generation = await runtime.gemini.generate(
-            system_instruction=SYSTEM_INSTRUCTION,
-            user_text=build_user_text(q, sources),
-            response_schema=RESPONSE_SCHEMA,
-            models=models or settings.generation_models,
-        )
+        with run.stage("generate"):
+            generation = await runtime.gemini.generate(
+                system_instruction=SYSTEM_INSTRUCTION,
+                user_text=build_user_text(q, sources),
+                response_schema=RESPONSE_SCHEMA,
+                models=models or settings.generation_models,
+                deadline=run.deadline,
+                stats=run.stats,
+            )
     except QuotaExceededError as exc:
-        return await _quota_refusal(runtime, result, exc)
+        return await _finish(runtime, _out_of_quota(result, exc), run, qhash)
     except (GeminiError, GeminiNotConfiguredError) as exc:
         log.warning("generation unavailable: %s", exc)
-        result.stage = Stage.UNAVAILABLE
-        result.detail = "live answers are temporarily unavailable"
-        return result
+        _unavailable(result, exc, "live answers are temporarily unavailable")
+        return await _finish(runtime, result, run, qhash)
 
     result.model = generation.model
     result.fallback_from = generation.skipped
     if generation.blocked:
         result.stage = Stage.BLOCKED
         result.detail = f"the provider blocked the response ({generation.block_reason})"
-        return await _finish(runtime, result, qhash, query_vector, revision, origin, {}, store)
+        return await _finish(runtime, result, run, qhash, keep())
 
+    with run.stage("check"):
+        worth_keeping, cited = _judge(result, generation.text, retrieval, q)
+    return await _finish(runtime, result, run, qhash, keep(cited) if worth_keeping else None)
+
+
+def _judge(
+    result: AskResult, text: str | None, retrieval: RetrievalResult, q: str
+) -> tuple[bool, dict[str, str]]:
+    """Decide whether the model's answer may be shown, and fill `result` either way.
+
+    Makes no database or model call: this is the support check (ADR-0008) and
+    the citation check, on what generation returned.
+
+    Returns whether the outcome is worth storing, and the documents a shown
+    answer cites with the checksum each was cited at. Only output that could
+    not be read at all is not worth storing: that is transient and says
+    nothing about the question.
+    """
     try:
-        parsed = without_nul(json.loads(generation.text or ""))
+        parsed = without_nul(json.loads(text or ""))
         if not isinstance(parsed, dict):
             raise TypeError("not an object")
     except (json.JSONDecodeError, TypeError) as exc:
-        # Transient and uninformative about the question: never cached.
         log.warning("model returned malformed structured output: %s", exc)
         result.stage = Stage.MODEL_ERROR
-        result.withheld_answer = generation.text
-        return result
+        result.withheld_answer = text
+        return False, {}
 
     raw_answer = parsed.get("answer")
     answer_text = raw_answer if isinstance(raw_answer, str) else ""
     if parsed.get("sufficient") is not True:
         result.stage = Stage.MODEL_INSUFFICIENT
         result.withheld_answer = answer_text or None
-        return await _finish(runtime, result, qhash, query_vector, revision, origin, {}, store)
+        return True, {}
 
     by_id = {c.chunk_id: c for c in retrieval.results}
     claims = parsed.get("claims")
@@ -475,7 +645,7 @@ async def ask(
         result.stage = Stage.SUPPORT_CHECK
         result.detail = support.reason
         result.withheld_answer = answer_text or None
-        return await _finish(runtime, result, qhash, query_vector, revision, origin, {}, store)
+        return True, {}
 
     try:
         numbered = number_citations(answer_text, by_id.keys())
@@ -483,12 +653,12 @@ async def ask(
         result.stage = Stage.SUPPORT_CHECK
         result.detail = str(exc)
         result.withheld_answer = answer_text or None
-        return await _finish(runtime, result, qhash, query_vector, revision, origin, {}, store)
+        return True, {}
     if not numbered.order:
         result.stage = Stage.SUPPORT_CHECK
         result.detail = "the answer carries no citation"
         result.withheld_answer = answer_text or None
-        return await _finish(runtime, result, qhash, query_vector, revision, origin, {}, store)
+        return True, {}
 
     quotes_by_chunk: dict[str, list[str]] = {}
     for claim_result in support.results:
@@ -504,52 +674,61 @@ async def ask(
         _citation(n, by_id[cid], quotes_by_chunk.get(cid, [])[:3])
         for n, cid in enumerate(numbered.order, start=1)
     ]
-    cited_documents = {
+    return True, {
         by_id[cid].document_id: str(by_id[cid].details.get("checksum", ""))
         for cid in numbered.order
     }
-    return await _finish(
-        runtime, result, qhash, query_vector, revision, origin, cited_documents, store
-    )
 
 
-async def _quota_refusal(runtime: Runtime, result: AskResult, exc: QuotaExceededError) -> AskResult:
-    async with runtime.pool.connection() as conn:
-        await quota.bump(conn, "quota_blocked")
-    result.stage = Stage.QUOTA
-    result.quota_resets_at = quota.next_reset()
-    result.detail = f"today's {exc.kind} allowance is used up"
+async def _serve_hit(
+    conn: Conn, row: Mapping[str, Any], info: CacheInfo, run: _Run, qhash: str
+) -> AskResult:
+    """Serve a stored answer.
+
+    One round trip records the hit, adds the day's counts, and reads today's
+    review state of each cited chunk.
+    """
+    citations = list(row.get("citations") or [])
+    result = _result_from_row(row, citations, info)
+    counts = run.close(result, info.kind or "exact")
+    counts[f"cache_hit_{info.kind}"] = 1
+    statements = [cache.record_hit_statement(row["id"]), quota.bump_statement(counts)]
+    ids = _cited_chunk_ids(citations)
+    if ids:
+        statements.append((_REVIEW_STATES_SQL, (ids,)))
+    served, _, *states = await fetch_together(conn, statements)
+    info.served_count = int(served[0]["served_count"]) if served else 0
+    if states:
+        _apply_review_states(citations, states[0])
+    _log(result, qhash, info.kind or "exact")
     return result
 
 
 async def _finish(
     runtime: Runtime,
     result: AskResult,
+    run: _Run,
     qhash: str,
-    query_vector: list[float] | None,
-    revision: int,
-    origin: str,
-    cited_documents: dict[str, str],
-    store: bool,
+    keep: _Kept | None = None,
+    *,
+    count_ask: bool = False,
 ) -> AskResult:
+    """Every way a question ends, except a cache hit: count it, and store it if it is worth reusing.
+
+    One round trip for both. `keep` is None when the result must not be
+    stored: the caller asked for that, or it describes a moment (an outage, a
+    quota) or the student's own input, not the question and the corpus.
+    """
+    served = "live" if run.stats.attempts.get("generate") else "none"
+    counts = run.close(result, served)
+    counts[_outcome_metric(result)] = 1
+    if count_ask:
+        counts["ask"] = 1
+    statements = [quota.bump_statement(counts)]
+    if keep is not None and (result.status == "answered" or result.stage in CACHEABLE_STAGES):
+        result.answer_id = _new_answer_id()
+        statements.append(_store_statement(result, keep))
     async with runtime.pool.connection() as conn:
-        metric = "answered" if result.status == "answered" else f"refused_{result.stage}"
-        await quota.bump(conn, metric)
-        if store and (result.status == "answered" or result.stage in CACHEABLE_STAGES):
-            await _store(
-                conn,
-                result,
-                qhash=qhash,
-                query_vector=query_vector,
-                revision=revision,
-                origin=origin,
-                cited_documents=cited_documents,
-            )
-    log.info(
-        "ask level=%s stage=%s model=%s q=%s",
-        result.level.value,
-        result.stage or "answered",
-        result.model,
-        qhash[:12],
-    )
+        await fetch_together(conn, statements)
+    _log(result, qhash, served)
     return result

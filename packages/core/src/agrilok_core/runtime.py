@@ -51,6 +51,7 @@ async def open_runtime(
         embedding_dimensions=settings.gemini_embedding_dimensions,
         timeout_seconds=settings.gemini_request_timeout_seconds,
         requests_per_minute=settings.gemini_max_requests_per_minute,
+        embed_requests_per_minute=settings.gemini_max_embed_requests_per_minute,
         before_request=before_request,
         http=http,
         sleep=sleep,

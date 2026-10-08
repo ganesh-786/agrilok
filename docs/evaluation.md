@@ -601,10 +601,161 @@ verified.
    manures supports "urea is not organic". That decides `PP-16`'s expected
    behaviour.
 
+### Speed: what was measured without a model (2026-10-06)
+
+Until this date nothing recorded where a question's time went, so "answers are
+slow" could not be shown and neither could a fix. Three things were measured
+with a fake model that answers instantly, so that every second counted is the
+pipeline's own. No model was called and no hosted database was touched.
+
+**Our own limiter.** The client spaced requests 60 / 10 = 6 seconds apart, so
+a question waited between its embedding and its generation with nobody else
+in the queue. It now limits how many requests start in a minute, per kind, and
+does not space them. Real clock, default ceiling of 10 a minute:
+
+| Questions arriving at once | Before | After |
+|---|---|---|
+| 1 | waits 6 s | no wait |
+| 3 | 6 s, 24 s and 30 s | no wait |
+| 10 | not measured | no wait |
+| 12 | not measured | 10 at once, 2 wait 60 s: the ceiling holding |
+
+**Waits on the database.** Statements that do not depend on each other now
+travel together. Measured through a relay that delays everything sent to
+Postgres by 50 ms, as distance would; the figure is wall time divided by that
+delay, the median of 7 questions after 7 to warm up.
+
+| One question | Before | After |
+|---|---|---|
+| new, answered and stored | 13.7 | 8.6 |
+| new, nothing relevant in the corpus | 12.6 | 7.6 |
+| reworded, served from the near-duplicate cache | 9.9 | 6.3 |
+| asked before, answer served from the cache | 7.4 | 3.8 |
+| asked before, refusal served from the cache | 6.1 | 2.5 |
+
+Two of the waits left on a new question are the quota reservations, kept apart
+on purpose: every attempt must be reserved exactly when it is made.
+
+**Retrieval returns what it returned.** The keyword statement now reports each
+match's vector score itself, which removed a statement. Old and new were run
+side by side on the local corpus: 438 chunks as question vectors, both levels,
+three settings, 3,066 retrievals, 779 of which chose a chunk the vector side
+never proposed. Chunks, order, scores and text were identical in all of them.
+
+**What this does not show.** How long the model takes, how many tokens an
+answer uses, or anything about the hosted database: those need a run with a
+key, and the pipeline now records them when there is one. The golden set was
+run on this change two days later, and that is the next section.
+
+### Golden set, before and after the speed change (2026-10-08)
+
+The change touches the answer path and the retrieval SQL, so both numbers are
+owed ([when to run it](#when-to-run-it)). Both runs used the hosted database
+(465 chunks, 25 documents, corpus revision 18), the same key and settings, and
+`gemini-3.1-flash-lite` with no fallback. "Before" is `main` at 616ea8a,
+"after" is the change at 7bc6efa, run one after the other.
+
+| Tier | Baseline | Before | After |
+|---|---|---|---|
+| Pipeline smoke tests (gated) | 13 | 11 of 13 | 12 of 13 |
+| Real past-paper (gated) | 20 | 20 of 20 | 20 of 20 |
+| Unverified model questions | not gated | 3 of 4 | 3 of 4 |
+
+- **The gate failed on both runs, and `main` fails it without this change.**
+  The smoke tier is below its baseline of 13 either way. Nothing errored, no
+  question that must be refused was answered, and no injected instruction
+  leaked. The baseline stays at 13.
+- **`SMOKE-03` is refused on both sides, every time.** Run alone three more
+  times on each, it was refused 4 of 4 on `main` and 4 of 4 on the change, by
+  the support check, on the number 200 at `LUM-01-000`. The support check and
+  the prompt are not part of this change. It is a failing gated question on
+  `main` and needs its own fix.
+- **`SMOKE-13` is the one row that differed, and it wavers on both sides.**
+  Refused before and answered after in the full runs. Over four runs each it
+  was answered 3 of 4 on `main` and 3 of 4 on the change. Each refusal is the
+  dotted number "5.1" ([below](#open-the-number-rule-cannot-see-dotted-numbers)),
+  depending on how the model worded its claim.
+- **Retrieval did not move.** For all 37 questions the documents consulted,
+  their similarity to three decimals and which were used are identical in the
+  two runs. The nine rows answered in both cite the same chunks, and five of
+  the nine answers are identical to the letter.
+- **Read against the source.** The after run answered ten rows (`SMOKE-01`,
+  `02`, `04`, `05`, `13`, `PP-16`, `PP-18`, `U-02`, `U-03`, `U-04`). Each was
+  read against the full text of its cited chunks. Eight are faithful. `PP-16`
+  is partly faithful, with the same gap as on 2026-09-24.
+  `U-04` is not faithful: it again glosses Article 16 as "Right to live with
+  dignity", which the cited chunk does not say. `main` gave that same sentence
+  in the before run, so it is not new here, but the support check lets it
+  through on both sides and that is an open fault. In `SMOKE-05` one of the
+  four cited chunks (`LUM-03-009`) does not contain the list it is cited for;
+  the other three do.
+- **No row answered before is refused after**, and no new unfaithful answer
+  appeared.
+
+**What a new question cost, cache off, 37 questions on the change:**
+
+| Stage | Median | 90th percentile | Longest |
+|---|---|---|---|
+| Whole question | 4.3 s | 13.0 s | 21.1 s |
+| Embedding | 0.7 s | 5.2 s | 18.4 s |
+| Search (database) | 0.4 s | 0.5 s | 0.7 s |
+| Generation | 2.4 s | 6.8 s | 8.4 s |
+
+Every request succeeded on its first attempt, 37 embeddings and 37
+generations. Generation read 242,008 prompt tokens, 87,818 of them counted as
+cached by the provider, and wrote 9,008. The long embedding times are our own
+ceiling of 10 request starts a minute, met because the harness asks questions
+back to back: the first ten waited for nothing, the eleventh waited 18 seconds,
+and 18 questions waited at some point. The whole run took 232 seconds where
+the before run took 471. That is one run of each, minutes apart, not a
+controlled comparison, and `main` records no stage times to set beside these.
+
+These were also the first batched statements sent to the hosted database.
+All 37 questions and the repeats completed without a database error.
+
+### Measuring retrieval by itself (2026-10-06)
+
+The golden-set run says whether a question was answered. It cannot say why one
+was refused: the right chunk never found, or found and passed over. `U-01` was
+the first kind and nothing would have shown it but a person reading the run.
+
+`python -m evaluation.recall` asks only that. For a labelled question it
+reports whether the chunk that holds the answer is among the chunks the model
+would be shown, and whether it is in the top 20 candidates at all. No answer is
+generated and no model judges anything, so two runs give the same numbers.
+
+- **7 of the 12 answerable questions are labelled**
+  ([retrieval-labels.yaml](../data/golden-set/retrieval-labels.yaml)). Each
+  label was already in `questions.yaml` as free text and was checked against
+  the corpus: the chunk exists, is admitted and embedded, and contains the
+  passage the hint quotes.
+- **The other 5 are not** (`PP-18`, `U-01` to `U-04`). They cite an article of
+  the Constitution, not a chunk, and the extracted text has lost too many
+  letters for a search to find the article. Guessing would put an unchecked
+  claim into the golden set. They need someone who reads Nepali, and they are
+  the cross-language questions, so they matter most.
+- **First numbers (2026-10-08, hosted database).** The answering chunk is
+  shown to the model for 6 of the 7 and is in the top 20 for 7 of 7, with a
+  mean reciprocal rank of 0.537. `SMOKE-13` is the one found but not shown,
+  so that is a ranking problem, not a recall one. Run again with `main`'s
+  retrieval and the same question vectors, every number is the same.
+
+### Open: chunk size has never been checked against the embedding model's limit
+
+Chunks are cut at a size worked out as words / 0.75. `gemini-embedding-001`
+reads at most 2,048 tokens of a text, and Devanagari takes more tokens than
+that estimate assumes. A chunk over the limit is embedded without its end and
+nothing says so. `agrilok-ingest tokens` asks the provider's tokeniser for the
+real count, longest chunks first. It has not been run: it needs a key, and
+whether the tokeniser endpoint accepts the embedding model is not documented.
+
 ## Operational metrics
 
 Separate from answer quality, and measured from the first deployment:
 
+- **Time per stage** of answering, and the whole question by how it was served
+  (from the cache or by a generation), as counts per day
+- **Tokens the provider counted**, in, out and thinking
 - **Cache hit rate** - the mechanism the free tier depends on
 - **Daily API request burn** against the configured ceiling
 - **Review queue depth and age** - a queue that grows unboundedly means content
