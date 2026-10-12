@@ -195,7 +195,28 @@ class CommonQuestion(BaseModel):
     review: Review
 
 
+class StageTiming(BaseModel):
+    """How long one stage of answering took today, read back from buckets.
+
+    A percentile is the upper edge of the bucket it falls in, so "2500" means
+    2.5 seconds or less, not exactly 2.5. Null means slower than the last
+    bucket (60 seconds).
+    """
+
+    count: int
+    p50_ms: int | None
+    p95_ms: int | None
+
+
 class Status(BaseModel):
     live: LiveStatus
+    # Outcomes: questions asked, cache hits, answers, refusals by reason.
     today: dict[str, int]
     cache_hit_rate_today: float | None
+    # Per stage ("embed", "generate", "search" ...), and the whole question by
+    # how it was served ("total_exact", "total_similar", "total_live").
+    timings_today: dict[str, StageTiming]
+    # Tokens as the provider reported them ("generate.prompt", "generate.output",
+    # "generate.thinking", "embed.prompt"), and requests sent, retries included.
+    tokens_today: dict[str, int]
+    attempts_today: dict[str, int]

@@ -11,6 +11,10 @@ real failure (see spike/lib/gemini.mjs):
 - Overload and quota errors move generation to the next model in the chain;
   "model not found" does not, because a retired model must fail loudly.
 - The API key is sent in a header, never in a URL, and never logged.
+- Our own ceiling limits how many requests start in a minute, not how far
+  apart they are. Spacing them out made every question wait for nothing.
+- A question has one time budget (agrilok_core.deadline). A request never
+  waits, runs or retries past it.
 """
 
 from __future__ import annotations
@@ -21,11 +25,14 @@ import logging
 import random
 import re
 import time
+from collections import Counter, deque
 from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
 import httpx
+
+from agrilok_core.deadline import Clock, Deadline
 
 API_BASE = "https://generativelanguage.googleapis.com/v1beta"
 RETRYABLE_STATUS = frozenset({429, 500, 502, 503, 504})
@@ -34,6 +41,9 @@ MAX_BACKOFF_SECONDS = 20.0
 # Google documents no maximum per batchEmbedContents call. 25 is chosen to sit
 # comfortably under anything plausible, not measured against a real ceiling.
 EMBED_BATCH_SIZE = 25
+RATE_WINDOW_SECONDS = 60.0
+# An attempt given less than this cannot finish, so it is not started.
+MIN_ATTEMPT_SECONDS = 1.0
 
 TaskType = Literal["RETRIEVAL_DOCUMENT", "RETRIEVAL_QUERY"]
 RequestKind = Literal["generate", "embed"]
@@ -72,6 +82,25 @@ class GeminiError(RuntimeError):
     @property
     def overload_or_quota(self) -> bool:
         return self.status in {429, 500, 503, 504}
+
+
+class GeminiDeadlineError(GeminiError):
+    """The question's time budget ran out before the provider answered.
+
+    Never retried and never a reason to try the next model: there is no time
+    left for either.
+    """
+
+    def __init__(self, message: str) -> None:
+        super().__init__(message, status=504)
+
+    @property
+    def retryable(self) -> bool:
+        return False
+
+    @property
+    def overload_or_quota(self) -> bool:
+        return False
 
 
 _RETRY_HINT = re.compile(r"retry in ([0-9.]+)s", re.IGNORECASE)
@@ -141,20 +170,68 @@ def parse_api_error(
     )
 
 
-class _RateGate:
-    """Space requests out so our own ceiling is hit before the provider's."""
+class _SlidingWindow:
+    """At most `limit` request starts in any `window` seconds.
 
-    def __init__(self, per_minute: int) -> None:
-        self._interval = 60.0 / max(1, per_minute)
-        self._lock = asyncio.Lock()
-        self._last = -self._interval
+    It replaces a gate that started one request every 60 / limit seconds. That
+    kept the same ceiling, but it also made a lone question wait six seconds
+    between its embedding and its generation, with nothing else in the queue.
+    Here a request starts at once while the window has room, and waits only
+    for the oldest start to leave the window when it does not.
 
-    async def wait(self, sleep: Sleep) -> None:
-        async with self._lock:
-            delay = self._interval - (time.monotonic() - self._last)
-            if delay > 0:
-                await sleep(delay)
-            self._last = time.monotonic()
+    A start is booked the moment it is asked for, possibly in the future, so
+    callers cannot overtake one another and nothing is held while they sleep.
+    Booked starts never decrease, and start number i + limit is always at
+    least one window after start number i, which is the whole guarantee.
+
+    Like the gate before it, this lives in one process. Several API instances
+    each have their own, so the daily ceiling in the database (quota.reserve)
+    stays the limit that all of them share.
+    """
+
+    def __init__(self, limit: int, window: float = RATE_WINDOW_SECONDS) -> None:
+        self._limit = max(1, limit)
+        self._window = window
+        self._starts: deque[float] = deque(maxlen=self._limit)
+
+    def book(self, now: float, max_wait: float | None = None) -> float | None:
+        """Seconds to wait before starting, or None if that is longer than `max_wait`.
+
+        A refused booking takes no slot.
+        """
+        has_room = len(self._starts) < self._limit
+        start = now if has_room else max(now, self._starts[0] + self._window)
+        wait = start - now
+        if max_wait is not None and wait > max_wait:
+            return None
+        self._starts.append(start)  # when full, the oldest start drops off the left
+        return wait
+
+
+@dataclass
+class CallStats:
+    """What one question cost at the provider. Counts only, never text (docs/privacy.md)."""
+
+    # HTTP attempts per kind, retries included: what the provider's quota saw.
+    attempts: Counter[str] = field(default_factory=Counter)
+    # Time held back by our own limiter, as distinct from the provider being slow.
+    waited_seconds: float = 0.0
+    # Token counts as the provider reported them, keyed "<kind>.<what>".
+    tokens: Counter[str] = field(default_factory=Counter)
+
+
+# Our name for each count the provider reports with a generation.
+_GENERATION_USAGE = {
+    "promptTokenCount": "generate.prompt",
+    "cachedContentTokenCount": "generate.cached",
+    "candidatesTokenCount": "generate.output",
+    "thoughtsTokenCount": "generate.thinking",
+}
+
+
+def _count(usage: Any, name: str) -> int:
+    value = usage.get(name) if isinstance(usage, dict) else None
+    return value if isinstance(value, int) and not isinstance(value, bool) and value > 0 else 0
 
 
 @dataclass
@@ -165,6 +242,8 @@ class Generation:
     block_reason: str | None = None
     finish_reason: str | None = None
     skipped: list[dict[str, Any]] = field(default_factory=list)
+    # Token counts for this generation, keyed as in CallStats.tokens.
+    usage: dict[str, int] = field(default_factory=dict)
 
 
 class GeminiClient:
@@ -176,16 +255,29 @@ class GeminiClient:
         embedding_dimensions: int,
         timeout_seconds: float,
         requests_per_minute: int,
+        embed_requests_per_minute: int | None = None,
         before_request: BeforeRequest | None = None,
         http: httpx.AsyncClient | None = None,
         sleep: Sleep = asyncio.sleep,
+        clock: Clock = time.monotonic,
     ) -> None:
         self._api_key = api_key
         self._embedding_model = embedding_model
         self._embedding_dimensions = embedding_dimensions
         self._before_request = before_request
         self._sleep = sleep
-        self._gate = _RateGate(requests_per_minute)
+        self._clock = clock
+        self._timeout_seconds = timeout_seconds
+        # The provider counts each model against its own allowance, so
+        # embeddings and generation each get a window. Sharing one made a
+        # question's embedding use up a generation slot.
+        self._gates: dict[RequestKind | None, _SlidingWindow] = {
+            "generate": _SlidingWindow(requests_per_minute),
+            "embed": _SlidingWindow(embed_requests_per_minute or requests_per_minute),
+            # Metadata calls (does the model exist, count these tokens) draw
+            # on no quota we meter, and must not take a slot from an answer.
+            None: _SlidingWindow(requests_per_minute),
+        }
         self._owns_http = http is None
         self._http = http or httpx.AsyncClient(timeout=httpx.Timeout(timeout_seconds))
 
@@ -212,21 +304,46 @@ class GeminiClient:
         kind: RequestKind | None,
         body: dict[str, Any] | None = None,
         max_retries: int = MAX_RETRIES,
+        *,
+        deadline: Deadline | None = None,
+        stats: CallStats | None = None,
     ) -> dict[str, Any]:
         headers = self._headers()
+        gate = self._gates[kind]
         attempt = 0
         while True:
             attempt += 1
-            await self._gate.wait(self._sleep)
+            left = deadline.remaining() if deadline is not None else None
+            if left is not None and left < MIN_ATTEMPT_SECONDS:
+                raise GeminiDeadlineError(f"{label} ran out of time")
+            wait = gate.book(self._clock(), max_wait=left)
+            if wait is None:
+                raise GeminiDeadlineError(f"{label} found no free request slot in time")
+            if wait > 0:
+                if stats is not None:
+                    stats.waited_seconds += wait
+                await self._sleep(wait)
             if self._before_request is not None and kind is not None:
                 # Every HTTP attempt counts against the provider's quota,
                 # retries included, so every attempt is reserved here.
                 # Metadata calls (kind None) draw on no generation quota.
                 await self._before_request(kind)
+            if stats is not None and kind is not None:
+                stats.attempts[kind] += 1
+            # With a deadline, an attempt gets what is left of it, never the
+            # full per-request timeout. The HTTP timeout bounds each wait on
+            # the network, not the attempt as a whole, so a reply that keeps
+            # trickling in could outlast it. The second bound is on the clock.
+            timeout: Any = httpx.USE_CLIENT_DEFAULT
+            cut_off: float | None = None
+            if deadline is not None:
+                cut_off = max(MIN_ATTEMPT_SECONDS, deadline.remaining())
+                timeout = min(self._timeout_seconds, cut_off)
             try:
-                response = await self._http.request(
-                    method, f"{API_BASE}/{path}", headers=headers, json=body
-                )
+                async with asyncio.timeout(cut_off):
+                    response = await self._http.request(
+                        method, f"{API_BASE}/{path}", headers=headers, json=body, timeout=timeout
+                    )
                 if response.status_code >= 400:
                     raise parse_api_error(
                         response.status_code,
@@ -238,7 +355,7 @@ class GeminiClient:
                 if not isinstance(payload, dict):
                     raise GeminiError(f"{label} returned a non-object body", status=502)
                 return payload
-            except httpx.TimeoutException:
+            except (httpx.TimeoutException, TimeoutError):
                 error = GeminiError(f"{label} timed out", status=504)
             except httpx.TransportError as exc:
                 error = GeminiError(f"{label} network error: {type(exc).__name__}", status=503)
@@ -250,6 +367,10 @@ class GeminiClient:
             if backoff is None:
                 backoff = 2**attempt + random.random() * 0.5  # noqa: S311 - jitter, not crypto
             backoff = min(backoff, MAX_BACKOFF_SECONDS)
+            if deadline is not None and backoff + MIN_ATTEMPT_SECONDS > deadline.remaining():
+                # No time to wait and try again: report the failure that
+                # happened, not a retry that could not.
+                raise error
             log.warning(
                 "gemini %s got HTTP %s, retrying in %.0fs (attempt %d/%d)",
                 label,
@@ -270,21 +391,55 @@ class GeminiClient:
             "outputDimensionality": self._embedding_dimensions,
         }
 
-    async def embed(self, text: str, task_type: TaskType) -> list[float]:
+    async def embed(
+        self,
+        text: str,
+        task_type: TaskType,
+        *,
+        deadline: Deadline | None = None,
+        stats: CallStats | None = None,
+    ) -> list[float]:
         payload = await self._request(
             "POST",
             f"models/{self._embedding_model}:embedContent",
             "embed",
             "embed",
             self._embed_request(text, task_type),
+            deadline=deadline,
+            stats=stats,
         )
         values = (payload.get("embedding") or {}).get("values")
         if not isinstance(values, list) or not values:
             raise GeminiError("embed returned no embedding values", status=502)
+        if stats is not None:
+            stats.tokens["embed.prompt"] += _count(payload.get("usageMetadata"), "promptTokenCount")
         return [float(v) for v in values]
 
-    async def embed_query(self, text: str) -> list[float]:
-        return await self.embed(text, "RETRIEVAL_QUERY")
+    async def embed_query(
+        self, text: str, *, deadline: Deadline | None = None, stats: CallStats | None = None
+    ) -> list[float]:
+        return await self.embed(text, "RETRIEVAL_QUERY", deadline=deadline, stats=stats)
+
+    async def count_tokens(self, text: str, model: str | None = None) -> int:
+        """How many tokens `model` (the embedding model by default) makes of `text`.
+
+        A metadata call: it generates nothing and draws on no quota this
+        project meters. Whether the provider's tokeniser endpoint accepts a
+        given model is the provider's decision. A refusal comes back as a
+        GeminiError and is never papered over with an estimate.
+        """
+        name = model or self._embedding_model
+        payload = await self._request(
+            "POST",
+            f"models/{name}:countTokens",
+            f"count_tokens[{name}]",
+            None,
+            {"contents": [{"parts": [{"text": text}]}]},
+        )
+        total = payload.get("totalTokens")
+        if not isinstance(total, int) or isinstance(total, bool) or total < 0:
+            raise GeminiError("count_tokens returned no totalTokens", status=502)
+        return total
 
     async def embed_batch(
         self,
@@ -356,6 +511,8 @@ class GeminiClient:
         models: Sequence[str],
         temperature: float = 0.1,
         max_output_tokens: int = 4096,
+        deadline: Deadline | None = None,
+        stats: CallStats | None = None,
     ) -> Generation:
         """Generate structured JSON, falling back along `models` on overload or quota only."""
         if not models:
@@ -388,6 +545,8 @@ class GeminiClient:
                     "generate",
                     body,
                     max_retries=MAX_RETRIES if is_last else 1,
+                    deadline=deadline,
+                    stats=stats,
                 )
                 used_model = model
                 break
@@ -397,6 +556,11 @@ class GeminiClient:
                 skipped.append({"model": model, "status": exc.status})
                 log.warning("gemini %s unavailable (HTTP %s), falling back", model, exc.status)
         assert payload is not None  # noqa: S101 - the loop either breaks with a payload or raises
+
+        reported = payload.get("usageMetadata")
+        usage = {ours: _count(reported, theirs) for theirs, ours in _GENERATION_USAGE.items()}
+        if stats is not None:
+            stats.tokens.update(usage)
 
         candidates = payload.get("candidates") or []
         if not candidates:
@@ -409,6 +573,7 @@ class GeminiClient:
                     blocked=True,
                     block_reason=str(block_reason),
                     skipped=skipped,
+                    usage=usage,
                 )
             raise GeminiError("generate returned no candidates", status=502)
         candidate = candidates[0]
@@ -419,6 +584,7 @@ class GeminiClient:
             model=used_model,
             finish_reason=candidate.get("finishReason"),
             skipped=skipped,
+            usage=usage,
         )
 
     async def model_exists(self, model: str) -> bool:

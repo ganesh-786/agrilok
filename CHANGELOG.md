@@ -63,6 +63,15 @@ in two groups where relevant:
 - Architecture decision records 0010 to 0013.
 - `.env.example` sections for Supabase (hosted Postgres) and Upstash Redis,
   with the setup steps. No code reads the Redis setting yet.
+- Every question's stages are timed and its model tokens counted, as counts
+  per day with no question text. `GET /v1/status` reports them, and a
+  golden-set run reports time per stage alongside right and wrong.
+- `python -m evaluation.recall` measures retrieval by itself: whether the
+  chunk that holds an answer is found, and how high. Its labels are in
+  `data/golden-set/retrieval-labels.yaml`; 7 of the 12 answerable questions
+  are labelled so far.
+- `agrilok-ingest tokens` counts each chunk's real tokens against the
+  embedding model's input limit.
 
 ### Changed
 - CI builds, lints, type checks and tests every component against a pgvector
@@ -82,6 +91,16 @@ in two groups where relevant:
   - A change of exam is confirmed by a message that leaves by itself.
   - Browser tests (`npm run test:e2e`) cover navigation, changing exam,
     reflow in both languages and themes, and the service worker.
+- A question has one time budget, `ASK_DEADLINE_SECONDS` (150). Waiting for a
+  request slot, every attempt and every retry draw on it, and when it runs out
+  the question ends as "unavailable" and is not stored. Five attempts of 90
+  seconds were allowed before, past the web server's own 180.
+- Statements that do not depend on each other go to the database together. A
+  cached answer waits on the database about half as often as before, and a new
+  one about a third less (`docs/evaluation.md`).
+- Embedding and generation each have their own per-minute ceiling.
+  `GEMINI_MAX_EMBED_REQUESTS_PER_MINUTE` sets the embedding one; unset, it is
+  the same as `GEMINI_MAX_REQUESTS_PER_MINUTE`.
 
 ### Removed
 - From the student pages, while they run on demo content: the live search
@@ -108,6 +127,10 @@ in two groups where relevant:
   database that did not answer, then ended in a traceback. It now gives up
   after 15 seconds with a message naming the host. `PGCONNECT_TIMEOUT`, or
   `connect_timeout` in the URL, sets a longer wait.
+- Every new question waited six seconds between its embedding and its
+  generation, with nobody else in the queue, because requests to the model
+  were spaced 60 / 10 seconds apart. The ceiling now limits how many start in
+  a minute and does not space them.
 
 ### Content & sources
 - The golden set moved to `data/golden-set`: 13 pipeline smoke tests, 20 real

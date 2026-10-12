@@ -69,6 +69,7 @@ uv run agrilok-ingest review list
 uv run agrilok-ingest review show <doc-id>
 uv run agrilok-ingest review admit <doc-id> --by @you --self-review
 uv run agrilok-ingest embed --yes            # vectors for admitted chunks
+uv run agrilok-ingest tokens                 # real token counts against the embedding limit
 uv run agrilok-ingest pregenerate --file data/pregenerate/common-questions.yaml
 uv run agrilok-ingest answers list           # review pre-generated answers
 ```
@@ -78,6 +79,13 @@ drafts a review issue for a document, and `--create` opens it with `gh`.
 Both `embed` and `pregenerate` spend Gemini quota. `embed` only says what it
 would do until it gets `--yes`; `pregenerate --dry-run` lists the questions
 without calling the model.
+
+`tokens` asks the provider's tokeniser how long each chunk really is, longest
+first (30 by default, `--all` for every chunk). The chunker sizes chunks by
+counting words, which undercounts Devanagari, and a chunk over the embedding
+model's input limit is embedded without its end. The command needs a key and
+spends no embedding or generation quota. It exits with status 3 if any counted
+chunk is over the limit.
 
 Chunk size is counted in approximate tokens (words / 0.75), ported from the
 spike so the chunks match what the golden set measured. It undercounts

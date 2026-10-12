@@ -1,0 +1,69 @@
+# Which chunk holds the answer to which golden question.
+#
+# questions.yaml says whether a question should be answered. This file says
+# where the answer is, so that retrieval can be measured by itself: was the
+# right chunk found, and how far down the list. No model judges anything. A
+# labelled chunk is among the chunks retrieval returned, or it is not.
+#
+# Nothing here is a new judgment. Every label below was already written in
+# questions.yaml, as free text in `expected_source_hint` or `note`, by the
+# person who checked it against the chunks. It is repeated here in a form a
+# program can read. On 2026-10-06 each id was confirmed to exist in the corpus,
+# to be admitted and embedded, and to contain the passage its hint quotes.
+#
+# `chunks`: any one of them is the answer. The same syllabus text is published
+# in more than one document, so two chunks can both be right.
+# `documents`: the golden file names only the document, so any chunk of it
+# counts. That is a weaker label, and the report marks it as one.
+#
+# Chunk ids belong to one build of the corpus. Re-chunking changes them, and
+# these labels must then be redone before the numbers mean anything.
+
+labels:
+  - id: SMOKE-01
+    chunks: [LUM-01-011, LUM-06-008]
+    basis: "questions.yaml, expected_source_hint"
+
+  - id: SMOKE-02
+    chunks: [LUM-01-011, LUM-06-008]
+    basis: "questions.yaml, expected_source_hint"
+
+  - id: SMOKE-03
+    chunks: [LUM-01-000]
+    basis: "questions.yaml, expected_source_hint"
+
+  - id: SMOKE-04
+    chunks: [LUM-01-016, LUM-06-012]
+    basis: "questions.yaml, expected_source_hint"
+
+  - id: SMOKE-05
+    documents: [LUM-03, LUM-04]
+    basis: "questions.yaml, expected_source_hint, which names the documents only: the group listing is in each document's title"
+
+  - id: SMOKE-13
+    chunks: [LUM-01-011, LUM-06-008]
+    basis: "questions.yaml, note: its legitimate part asks what SMOKE-01 asks"
+
+  - id: PP-16
+    chunks: [GAN-01-008]
+    basis: "questions.yaml, note"
+
+# Questions that should be answered and have no label yet. Each cites an
+# article of the Constitution (REF-04), not a chunk. The extracted text of
+# that document has lost too many letters for a search to find an article
+# reliably, so guessing a chunk id here would put an unchecked claim into the
+# golden set. Someone who reads Nepali needs to open the chunks and name the
+# right one. To see what retrieval returns for a question, as a place to start:
+#
+#     python -m evaluation.recall --candidates U-02
+unlabelled:
+  - id: PP-18
+    cites: "REF-04, Article 58"
+  - id: U-01
+    cites: "REF-04, Article 36 clause (3)"
+  - id: U-02
+    cites: "REF-04, Article 36 clause (3)"
+  - id: U-03
+    cites: "REF-04, Article 51 (ज) clause (12)"
+  - id: U-04
+    cites: "REF-04, Article 273 clause (10)"

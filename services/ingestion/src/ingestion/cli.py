@@ -5,6 +5,7 @@
     agrilok-ingest status                     corpus and review queue at a glance
     agrilok-ingest review list | show | admit | verify | reject | issue
     agrilok-ingest embed                      embed admitted chunks that have no vector
+    agrilok-ingest tokens                     count chunks' real tokens against the embedding limit
     agrilok-ingest answers list | show | verify
     agrilok-ingest pregenerate --file F       answer common questions once, for everyone
 
@@ -25,7 +26,7 @@ from pathlib import Path
 from typing import Any
 
 from agrilok_core.db import Conn, connect, run_sync
-from agrilok_core.gemini import GeminiNotConfiguredError
+from agrilok_core.gemini import GeminiError, GeminiNotConfiguredError
 from agrilok_core.quota import QuotaExceededError
 from agrilok_core.runtime import open_runtime
 from agrilok_core.settings import get_settings
@@ -36,6 +37,7 @@ from ingestion.manifest import ManifestError, load_entries, parse_entry
 from ingestion.phase0 import import_phase0
 from ingestion.pregenerate import load_questions, pregenerate
 from ingestion.store import ensure_source
+from ingestion.tokens import audit, limit_for
 
 REPO = Path(__file__).resolve().parents[4]
 
@@ -417,6 +419,81 @@ def cmd_embed(args: argparse.Namespace) -> int:
     return run_sync(main)
 
 
+def cmd_tokens(args: argparse.Namespace) -> int:
+    async def main() -> int:
+        runtime = await open_runtime()
+        try:
+            counting_with = args.model or runtime.settings.gemini_embedding_model
+            limit = limit_for(runtime.settings.gemini_embedding_model, args.limit_tokens)
+            result = await audit(
+                runtime, longest=None if args.all else args.longest, limit=limit, model=args.model
+            )
+        except GeminiNotConfiguredError:
+            print("error: GEMINI_API_KEY is not set in .env", file=sys.stderr)
+            return 1
+        except GeminiError as exc:
+            print(
+                f"error: the provider would not count tokens with {counting_with}: {exc}\n"
+                "To count with another model's tokeniser, pass --model. That is an estimate "
+                "for the embedding model, not its own count.",
+                file=sys.stderr,
+            )
+            return 1
+        finally:
+            await runtime.close()
+
+        worst = sorted(result.counted, key=lambda c: -c.tokens)[:10]
+        print(
+            _table(
+                [
+                    {
+                        "id": c.chunk_id,
+                        "tokens": c.tokens,
+                        "assumed": c.approx_tokens,
+                        "times": f"{c.tokens / c.approx_tokens:.1f}" if c.approx_tokens else "",
+                        "over": "OVER" if c.tokens > result.limit else "",
+                    }
+                    for c in worst
+                ],
+                [
+                    ("id", "chunk"),
+                    ("tokens", "tokens"),
+                    ("assumed", "chunker assumed"),
+                    ("times", "times as many"),
+                    ("over", ""),
+                ],
+            )
+        )
+        largest = result.largest
+        print(
+            f"\nCounted {len(result.counted)} of {result.chunks_in_corpus} chunk(s) with "
+            f"{counting_with}. The limit is {result.limit} tokens."
+        )
+        if args.model and args.model != runtime.settings.gemini_embedding_model:
+            print(
+                f"These are {args.model}'s counts, an estimate for "
+                f"{runtime.settings.gemini_embedding_model}, not its own."
+            )
+        if largest is not None:
+            print(f"The largest is {largest.chunk_id} at {largest.tokens} tokens.")
+        if result.longest_uncounted_octets:
+            print(
+                f"Not counted: the rest, the longest of which is {result.longest_uncounted_octets} "
+                f"bytes. At the densest rate seen that could reach about "
+                f"{result.uncounted_could_reach} tokens. That is an estimate; use --all to count."
+            )
+        if result.over:
+            print(
+                f"{len(result.over)} chunk(s) are over the limit. Their end is not in their "
+                "vector. Re-chunk those documents before trusting retrieval on them."
+            )
+            return 3
+        print("No counted chunk is over the limit.")
+        return 0
+
+    return run_sync(main)
+
+
 def cmd_answers_list(args: argparse.Namespace) -> int:
     async def run(conn: Conn) -> int:
         cur = await conn.execute(
@@ -608,6 +685,15 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--pause", type=float, default=20.0, help="seconds between batches")
     p.add_argument("--yes", action="store_true")
     p.set_defaults(func=cmd_embed)
+
+    p = sub.add_parser(
+        "tokens", help="count each chunk's real tokens against the embedding model's input limit"
+    )
+    p.add_argument("--longest", type=int, default=30, help="how many of the longest chunks")
+    p.add_argument("--all", action="store_true", help="count every chunk, one request each")
+    p.add_argument("--model", help="count with this model's tokeniser instead (an estimate)")
+    p.add_argument("--limit-tokens", type=int, help="the limit, if the recorded one has moved")
+    p.set_defaults(func=cmd_tokens)
 
     answers = sub.add_parser("answers", help="cached answers").add_subparsers(
         dest="answers_command", required=True

@@ -532,6 +532,21 @@ Every REFUSED outcome from step [5] on is stored as well, so the next student
 who asks the same thing gets the same refusal for free. Section 9.7 lists
 every outcome with its cost.
 
+Three things run alongside every step:
+
+- **One time budget for the question** (`ASK_DEADLINE_SECONDS`, 150). Waiting
+  for a request slot, every attempt and every retry draw on it. When it runs
+  out the question ends as UNAVAILABLE and is not stored. It is set below the
+  web server's own 180 seconds, so the API never works on after the student
+  was told "unavailable".
+- **Each stage is timed and each model call's tokens are counted**, as counts
+  per day with no question text (`agrilok_core/metrics.py`). `GET /v1/status`
+  reports them.
+- **Statements that do not depend on each other go to the database together.**
+  A new answered question waits on the database 7 times and a cached one 3
+  times. Before this they waited 13 and 6 to 7 times
+  ([evaluation.md](evaluation.md#speed-what-was-measured-without-a-model-2026-10-06)).
+
 Files: [packages/core/src/agrilok_core/pipeline.py](../packages/core/src/agrilok_core/pipeline.py),
 [apps/api/src/agrilok_api/routes.py](../apps/api/src/agrilok_api/routes.py).
 
@@ -651,9 +666,11 @@ Files: [packages/core/src/agrilok_core/prompt.py](../packages/core/src/agrilok_c
 
  for each model, in order:
  ┌──────────────────────────────────────────────────────────────────────────────┐
- │ one attempt = wait for the rate gate (10 requests a minute, per process)     │
+ │ one attempt = take a request slot: at most 10 generation starts in any       │
+ │               minute, per process. No wait while there is room               │
  │             ─► reserve 1 unit of the daily generate ceiling (400)            │
- │             ─► POST generateContent, key in the x-goog-api-key header        │
+ │             ─► POST generateContent, key in the x-goog-api-key header,       │
+ │                given at most what is left of the question's time budget      │
  │                                                                              │
  │ 2xx ─────────────────────────────────────► done                              │
  │ 429 per-minute, 500, 502, 503, 504,                                          │
@@ -662,6 +679,7 @@ Files: [packages/core/src/agrilok_core/prompt.py](../packages/core/src/agrilok_c
  │                                            never more than 20 s              │
  │ 429 daily quota ─────────────────────────► no retry                          │
  │ attempts per model: 2 while another model remains, 5 on the last one         │
+ │ no time left for the wait and one more attempt ─► no retry, no next model    │
  └──────────────────────────────────────────────────────────────────────────────┘
  still failing with 429, 500, 503 or 504, and a model left? ─ yes ──► next model
  any other failure (404: the model was retired) ────────────────────► UNAVAILABLE
@@ -829,6 +847,9 @@ the rate limit (429) use error codes.
 | heading window | 600 characters | `support_check.py` | golden `U-02` |
 | temperature, max output tokens | 0.1, 4096 | `gemini.py` | 2048 cut JSON off on a real run |
 | embedding dimensions | 768 | `.env`, `settings.py` | stored with each vector |
+| `ASK_DEADLINE_SECONDS` | 150 | `.env`, `settings.py` | below the web server's 180 s; room for one full generation attempt |
+| `GEMINI_MAX_REQUESTS_PER_MINUTE` | 10 | `.env`, `settings.py` | our ceiling; the provider's is not recorded |
+| `GEMINI_MAX_EMBED_REQUESTS_PER_MINUTE` | unset: the same as generation | `.env`, `settings.py` | embeddings have their own window |
 | `PROMPT_VERSION` | `2026-09-24.1` | `prompt.py` | bump on any prompt change |
 | `SUPPORT_CHECK_VERSION` | `2026-09-27.1` | `support_check.py` | bump whenever a verdict can change |
 
@@ -965,7 +986,9 @@ statement, so several API processes share one honest count.
  any Gemini HTTP attempt, retries included (generate or embed)
         │
         ▼
- rate gate: requests from this process spaced to 10 a minute
+ request window: at most 10 starts of this kind in any minute, from this
+ process. A request starts at once while there is room, and is refused
+ without spending anything if its slot would come after the question's deadline
         │
         ▼
  quota.reserve(kind):
@@ -993,12 +1016,19 @@ statement, so several API processes share one honest count.
 |---|---|---|
 | generate requests a day | 400 | 500 for the Lite models |
 | embed requests a day | 900 | 1,000 |
-| requests a minute, per process | 10 | not recorded |
+| request starts a minute, per kind and per process | 10 | not recorded |
+
+Generation and embedding each have their own window, because the provider
+counts each model against its own allowance. Requests are not spaced out: the
+window limits how many start in a minute, not how far apart they are. Spacing
+them made every new question wait six seconds between its embedding and its
+generation with nobody else in the queue.
 
 The quota day is the provider's (America/Los_Angeles), so both ceilings roll
 over together. The usage metrics in `usage_daily` count by the Kathmandu day,
-for people reading them. `GET /v1/status` reports today's metrics and the
-cache hit rate.
+for people reading them. `GET /v1/status` reports today's outcomes and cache
+hit rate, the time each stage took (as the bucket a percentile falls in), the
+tokens the provider counted, and the requests sent to it.
 
 Files: [packages/core/src/agrilok_core/quota.py](../packages/core/src/agrilok_core/quota.py),
 [packages/core/src/agrilok_core/runtime.py](../packages/core/src/agrilok_core/runtime.py),
@@ -1307,6 +1337,11 @@ Severity: **High** can take the service down or show a wrong answer.
   and store the answer.
 - **Fix.** Wrap generation in one overall timeout set below the web
   server's, and end as `unavailable` when it expires.
+- **Resolved 2026-10-06.** A question has one budget, `ASK_DEADLINE_SECONDS`
+  (150). Waiting for a slot, each attempt and each retry draw on it, for the
+  embedding as well as generation. When it runs out the question ends as
+  `unavailable` and is not stored. A request still in flight when the budget
+  ends is cut off on the clock, not only by the HTTP library's timeouts.
 
 #### R-11 (Low): the crawler hand-off is manual, and its memory is fragile
 

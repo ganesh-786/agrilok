@@ -20,7 +20,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 
-from agrilok_core.db import Conn, vector_literal
+from agrilok_core.db import Conn, Statement, fetch_together, vector_literal
 from agrilok_core.levels import ExamLevel
 from agrilok_core.text import search_terms
 
@@ -69,29 +69,32 @@ df as (
     join eligible e on e.id = t.chunk_id
     where t.term = any(%(terms)s)
     group by t.term
+),
+ranked as (
+    select
+        t.chunk_id as id,
+        sum(
+            ln(1 + (s.n - df.df + 0.5) / (df.df + 0.5))
+            * (t.tf * (%(k1)s + 1))
+            / (t.tf + %(k1)s * (1 - %(b)s + %(b)s * e.term_count / s.avgdl))
+        ) as score
+    from chunk_terms t
+    join eligible e on e.id = t.chunk_id
+    join df on df.term = t.term
+    cross join stats s
+    where t.term = any(%(terms)s)
+    group by t.chunk_id
+    order by score desc, t.chunk_id
+    limit %(n)s
 )
-select
-    t.chunk_id as id,
-    sum(
-        ln(1 + (s.n - df.df + 0.5) / (df.df + 0.5))
-        * (t.tf * (%(k1)s + 1))
-        / (t.tf + %(k1)s * (1 - %(b)s + %(b)s * e.term_count / s.avgdl))
-    ) as score
-from chunk_terms t
-join eligible e on e.id = t.chunk_id
-join df on df.term = t.term
-cross join stats s
-where t.term = any(%(terms)s)
-group by t.chunk_id
-order by score desc, t.chunk_id
-limit %(n)s
+-- A keyword match still needs a vector score to be judged (is_eligible). It is
+-- worked out here, for the ranked rows only, so it costs no statement of its
+-- own. With no question vector it is null, as it is for a chunk with no vector.
+select r.id, r.score, 1 - (c.embedding <=> %(qv)s::vector) as similarity
+from ranked r
+join chunks c on c.id = r.id
+order by r.score desc, r.id
 """  # noqa: S608 - _FILTER is a constant; every value is a bound parameter
-
-_SIMILARITY_SQL = """
-select c.id, 1 - (c.embedding <=> %(qv)s::vector) as similarity
-from chunks c
-where c.id = any(%(ids)s) and c.embedding is not null
-"""
 
 _DETAILS_SQL = """
 select
@@ -165,6 +168,8 @@ def _fuse(
         cand.keyword_rank = rank
         cand.keyword_score = float(row["score"])
         cand.fused += 1.0 / (RRF_K + rank)
+        if cand.similarity is None and row.get("similarity") is not None:
+            cand.similarity = float(row["similarity"])
     return candidates
 
 
@@ -242,32 +247,32 @@ async def retrieve(
 ) -> RetrievalResult:
     params = filters.params()
     terms = sorted(search_terms(question)) if use_keywords else []
+    qv = vector_literal(query_vector) if query_vector is not None else None
 
-    vector_hits: list[dict[str, Any]] = []
-    if query_vector is not None:
-        cur = await conn.execute(
-            _VECTOR_SQL, {**params, "qv": vector_literal(query_vector), "n": CANDIDATES_PER_SIDE}
-        )
-        vector_hits = list(await cur.fetchall())
-
-    keyword_hits: list[dict[str, Any]] = []
+    # The two sides do not depend on each other, so they go to the database
+    # together: one round trip instead of two.
+    statements: list[Statement] = []
+    if qv is not None:
+        statements.append((_VECTOR_SQL, {**params, "qv": qv, "n": CANDIDATES_PER_SIDE}))
     if terms:
-        cur = await conn.execute(
-            _KEYWORD_SQL,
-            {**params, "terms": terms, "k1": BM25_K1, "b": BM25_B, "n": CANDIDATES_PER_SIDE},
+        statements.append(
+            (
+                _KEYWORD_SQL,
+                {
+                    **params,
+                    "qv": qv,
+                    "terms": terms,
+                    "k1": BM25_K1,
+                    "b": BM25_B,
+                    "n": CANDIDATES_PER_SIDE,
+                },
+            )
         )
-        keyword_hits = list(await cur.fetchall())
+    answers = iter(await fetch_together(conn, statements))
+    vector_hits: Sequence[dict[str, Any]] = next(answers) if qv is not None else []
+    keyword_hits: Sequence[dict[str, Any]] = next(answers) if terms else []
 
     candidates = _fuse(vector_hits, keyword_hits)
-
-    # Keyword-only candidates still need a vector score to be judged.
-    missing = [c.chunk_id for c in candidates.values() if c.similarity is None]
-    if missing and query_vector is not None:
-        cur = await conn.execute(
-            _SIMILARITY_SQL, {"qv": vector_literal(query_vector), "ids": missing}
-        )
-        for row in await cur.fetchall():
-            candidates[row["id"]].similarity = float(row["similarity"])
 
     below: list[Candidate] = []
     if query_vector is None:

@@ -17,12 +17,32 @@ question is always returned, so the student can see what was actually asked.
 from __future__ import annotations
 
 import hashlib
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from typing import Any
 
-from agrilok_core.db import Conn, vector_literal
+from agrilok_core.db import Conn, Statement, vector_literal
 from agrilok_core.support_check import SUPPORT_CHECK_VERSION
 from agrilok_core.text import question_key
+
+# Statements the pipeline sends together with others (db.fetch_together), so
+# they are built here and run there.
+REVISION_STATEMENT: Statement = ("select revision from corpus_state where id = 1", None)
+
+
+def exact_statement(qhash: str) -> Statement:
+    return (
+        "select * from answers where question_hash = %s and invalidated_at is null "
+        "order by created_at desc limit 1",
+        (qhash,),
+    )
+
+
+def record_hit_statement(answer_id: str) -> Statement:
+    return (
+        "update answers set served_count = served_count + 1, last_served_at = now() "
+        "where id = %s returning served_count",
+        (answer_id,),
+    )
 
 
 def question_hash(level: str, province: str | None, group: str | None, question: str) -> str:
@@ -31,7 +51,7 @@ def question_hash(level: str, province: str | None, group: str | None, question:
 
 
 async def corpus_revision(conn: Conn) -> int:
-    cur = await conn.execute("select revision from corpus_state where id = 1")
+    cur = await conn.execute(*REVISION_STATEMENT)
     row = await cur.fetchone()
     return int(row["revision"]) if row else 0
 
@@ -45,11 +65,13 @@ async def bump_corpus_revision(conn: Conn) -> int:
     return int(row["revision"]) if row else 0
 
 
-async def _still_valid(conn: Conn, row: dict[str, Any]) -> bool:
+async def _still_valid(conn: Conn, row: Mapping[str, Any], revision: int | None) -> bool:
     if row["status"] == "refused":
         if row.get("check_version") != SUPPORT_CHECK_VERSION:
             return False
-        return int(row["corpus_revision"]) == await corpus_revision(conn)
+        if revision is None:
+            revision = await corpus_revision(conn)
+        return int(row["corpus_revision"]) == revision
     cited: dict[str, str] = row.get("cited_documents") or {}
     if not cited:
         return False
@@ -80,19 +102,18 @@ async def invalidate_citing(conn: Conn, document_id: str, reason: str) -> int:
     return cur.rowcount
 
 
-async def lookup_exact(conn: Conn, qhash: str) -> dict[str, Any] | None:
-    cur = await conn.execute(
-        "select * from answers where question_hash = %s and invalidated_at is null "
-        "order by created_at desc limit 1",
-        (qhash,),
-    )
-    row = await cur.fetchone()
-    if row is None:
-        return None
-    if not await _still_valid(conn, row):
-        await invalidate(conn, row["id"], "a cited document changed or the corpus grew")
-        return None
-    return dict(row)
+async def accept(
+    conn: Conn, row: Mapping[str, Any], *, reason: str, revision: int | None = None
+) -> bool:
+    """May this stored row still be served? If not, it is invalidated here.
+
+    `revision` is the corpus revision when the caller has already read it,
+    which saves a refusal's check its own statement.
+    """
+    if await _still_valid(conn, row, revision):
+        return True
+    await invalidate(conn, row["id"], reason)
+    return False
 
 
 async def lookup_similar(
@@ -127,17 +148,6 @@ async def lookup_similar(
     row = await cur.fetchone()
     if row is None or float(row["similarity"]) < threshold:
         return None
-    if not await _still_valid(conn, row):
-        await invalidate(conn, row["id"], "a cited document changed")
+    if not await accept(conn, row, reason="a cited document changed"):
         return None
     return dict(row), float(row["similarity"])
-
-
-async def record_hit(conn: Conn, answer_id: str) -> int:
-    cur = await conn.execute(
-        "update answers set served_count = served_count + 1, last_served_at = now() "
-        "where id = %s returning served_count",
-        (answer_id,),
-    )
-    row = await cur.fetchone()
-    return int(row["served_count"]) if row else 0

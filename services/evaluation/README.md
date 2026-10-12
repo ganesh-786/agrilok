@@ -59,4 +59,28 @@ stored, so it measures the pipeline, not yesterday's answers. The Markdown
 report has a line under each answered row for the person who reads the
 cited source and records whether the answer follows from it.
 
+The report also says how long each stage took and how many tokens the
+provider counted, so a before and after run shows speed and cost as well as
+right and wrong. With the cache off, that is what a new question costs, not
+what a student usually waits.
+
+## Retrieval by itself
+
+```sh
+uv run python -m evaluation.recall --report services/evaluation/reports/recall.json
+uv run python -m evaluation.recall --candidates U-02   # what retrieval returns for one question
+```
+
+For each labelled question
+([`retrieval-labels.yaml`](../../data/golden-set/retrieval-labels.yaml)) this
+reports whether the chunk that holds the answer is among the chunks the model
+would be shown, and whether it is in the top 20 candidates at all. Found but
+not shown is a ranking problem. Not found is a recall problem. No answer is
+generated and no model judges anything, so the numbers repeat exactly. It
+needs one embedding call per question the first time; the vectors are kept in
+`reports/` and reused after that.
+
+Run it before and after any change to chunking, embeddings or retrieval,
+alongside the golden-set run.
+
 The questions are in [`data/golden-set/questions.yaml`](../../data/golden-set/questions.yaml).

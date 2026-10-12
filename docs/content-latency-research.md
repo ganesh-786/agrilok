@@ -5,6 +5,16 @@ the API and ingestion code, and primary-source technical documentation. This is 
 investigation and proposed design, not an implemented fix or production certification.
 Existing application changes were left intact.
 
+## Implemented follow-up: the provider queue and the question deadline (2026-10-06)
+
+Two of the mechanisms under [Why minutes are possible](#why-minutes-are-possible)
+are fixed, so that section describes the code as it was on the research date.
+The shared rate gate that spaced requests six seconds apart is replaced by a
+ceiling on how many start in a minute, per kind. A question now has one
+deadline for waiting, attempts and retries together. The measurements are in
+[evaluation.md](evaluation.md#speed-what-was-measured-without-a-model-2026-10-06).
+Read pages that wait on the API, and the rest of that section, are unchanged.
+
 ## Implemented follow-up: the app's language button and Sources
 
 The owner confirmed that the slow control is agrilok's English/Nepali button,

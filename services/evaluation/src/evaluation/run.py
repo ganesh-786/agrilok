@@ -20,6 +20,7 @@ from __future__ import annotations
 import argparse
 import contextlib
 import json
+import math
 import sys
 from collections import Counter
 from dataclasses import asdict, dataclass, field
@@ -60,6 +61,10 @@ class Row:
     forbidden_found: bool = False
     error: str | None = None
     reference_answer: str | None = None
+    # Milliseconds per stage and what the provider counted, as the pipeline
+    # recorded them for this question (agrilok_core.pipeline.AskResult).
+    timings: dict[str, int] = field(default_factory=dict)
+    usage: dict[str, int] = field(default_factory=dict)
 
 
 def _row(q: GoldenQuestion) -> Row:
@@ -76,6 +81,8 @@ def _row(q: GoldenQuestion) -> Row:
 
 
 def _fill(row: Row, q: GoldenQuestion, result: AskResult) -> None:
+    row.timings = result.timings
+    row.usage = result.usage
     # Quota and outages are not the question's answer; they are errors of the
     # run, so they can never count as a correct refusal.
     if result.stage is not None and result.stage.value in {"quota", "unavailable", "model_error"}:
@@ -132,6 +139,31 @@ async def evaluate(runtime: Runtime, questions: list[GoldenQuestion]) -> list[Ro
     return rows
 
 
+def latency(rows: list[Row]) -> dict[str, dict[str, int]]:
+    """Time per stage: how many questions ran it, the median, the 90th percentile, the worst.
+
+    Exact milliseconds, unlike the bucketed daily counts, because a run has
+    every question's own numbers. Errors are left out: an outage is not how
+    long answering takes. With the cache off every question is asked live, so
+    this is the time a new question costs, not what a student usually waits.
+    """
+    by_stage: dict[str, list[int]] = {}
+    for row in rows:
+        if row.error is None:
+            for stage, ms in row.timings.items():
+                by_stage.setdefault(stage, []).append(ms)
+    report = {}
+    for stage, values in sorted(by_stage.items()):
+        values.sort()
+        report[stage] = {
+            "count": len(values),
+            "median_ms": values[(len(values) - 1) // 2],
+            "p90_ms": values[math.ceil(len(values) * 0.9) - 1],
+            "max_ms": values[-1],
+        }
+    return report
+
+
 def summarise(rows: list[Row], runtime: Runtime | None = None) -> dict[str, Any]:
     by_tier: dict[str, dict[str, int]] = {}
     for row in rows:
@@ -152,6 +184,8 @@ def summarise(rows: list[Row], runtime: Runtime | None = None) -> dict[str, Any]
             else None,
         },
         "models": dict(Counter(r.model for r in rows if r.model)),
+        "latency_ms": latency(rows),
+        "usage": dict(sum((Counter(r.usage) for r in rows), Counter())),
         "by_tier": by_tier,
         "matched": sum(int(r.matched) for r in rows),
         "total": len(rows),
@@ -175,6 +209,24 @@ def render_markdown(summary: dict[str, Any]) -> str:
     ]
     for tier, counts in summary["by_tier"].items():
         lines.append(f"| {tier} | {counts['matched']} | {counts['total']} | {counts['errors']} |")
+    if summary.get("latency_ms"):
+        lines += [
+            "",
+            (
+                "Time per stage, in milliseconds, for questions that did not error. The cache "
+                "is off, so this is what a new question costs."
+            ),
+            "",
+            "| Stage | Questions | Median | 90th percentile | Slowest |",
+            "|---|---|---|---|---|",
+        ]
+        for stage, t in summary["latency_ms"].items():
+            lines.append(
+                f"| {stage} | {t['count']} | {t['median_ms']} | {t['p90_ms']} | {t['max_ms']} |"
+            )
+    if summary.get("usage"):
+        spent = ", ".join(f"{name} {count}" for name, count in sorted(summary["usage"].items()))
+        lines += ["", f"Counted by the provider over the run: {spent}."]
     lines += [
         "",
         (

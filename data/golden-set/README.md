@@ -14,6 +14,7 @@ and is CODEOWNER-protected.
 |---|---|
 | `questions.yaml` | The questions, the expected behaviour (answer or refuse) and a source hint |
 | `baseline.json` | Matched counts from the last hand-checked run; the gate compares against it |
+| `retrieval-labels.yaml` | Which chunk holds the answer to each answerable question, for measuring retrieval by itself. It repeats what `questions.yaml` already says in its hints, and lists the questions still waiting for a label |
 
 ## Composition target
 
